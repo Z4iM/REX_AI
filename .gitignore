@@ -29,3 +29,6 @@ Thumbs.db
 
 # Unprocessed academy data
 data/raw/
+
+# ChromaDB persistent storage
+data/chroma/
