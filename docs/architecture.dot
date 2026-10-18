@@ -1,0 +1,72 @@
+digraph REX {
+ graph [label="REX AI  |  SMART ACADEMY MULTI-AGENT SYSTEM", labelloc=t, labeljust=l, fontname="DejaVu Sans", fontsize=27, fontcolor="#14253A", bgcolor="#F7F9FC", pad="0.38", nodesep="0.24", ranksep="0.75", compound=true, newrank=true, splines=ortho, outputorder=edgesfirst];
+ node [shape=box, style="rounded,filled", fontname="DejaVu Sans", fontsize=11, margin="0.22,0.12", penwidth=1.2, color="#CBD5E1", fillcolor="#FFFFFF", fontcolor="#17253A"];
+ edge [color="#7C8CA3", arrowsize=0.65, penwidth=1.35];
+
+ subgraph cluster_users {
+  label="01  USERS & TRIGGERS"; labelloc=t; labeljust=l; fontname="DejaVu Sans"; fontsize=13; fontcolor="#334155"; color="#DCE4EE"; style="rounded,filled"; fillcolor="#EDF3FA"; margin=17;
+  lead [label="Prospective Students\nPublic, Arabic / English", fillcolor="#FFFFFF"];
+  admin [label="Academy Staff\nAuthenticated reviewers", fillcolor="#FFFFFF"];
+  schedule [label="n8n Automation\nScheduled RFP checks + email", fillcolor="#FFFAF0", color="#F9C976"];
+ }
+ subgraph cluster_app {
+  label="02  APPLICATION & SECURITY"; labelloc=t; labeljust=l; fontname="DejaVu Sans"; fontsize=13; fontcolor="#334155"; color="#DCE4EE"; style="rounded,filled"; fillcolor="#EEF4FF"; margin=17;
+  public_ui [label="Streamlit Public Assistant\nCourse discovery + consent", color="#AFC7E7"];
+  admin_ui [label="Streamlit Admin Dashboard\nApprovals, alerts, files", color="#AFC7E7"];
+  api [label="FastAPI Gateway\nAuthentication • RBAC • validation\nRate limits • authenticated webhooks", fillcolor="#E1ECFF", color="#78A6E0", fontsize=12];
+ }
+ subgraph cluster_ai {
+  label="03  AGENT COORDINATION"; labelloc=t; labeljust=l; fontname="DejaVu Sans"; fontsize=13; fontcolor="#334155"; color="#DCE4EE"; style="rounded,filled"; fillcolor="#F0F6F5"; margin=17;
+  orch [label="LangGraph Orchestrator\nDeterministic routing + shared workflow state", fillcolor="#DAF1E9", color="#68B69F", fontsize=12];
+  a1 [label="01  REX Assistant\nCourse recommendations", fillcolor="#FFFFFF", color="#ACD9CE"];
+  a2 [label="02  RFP Research\nEgypt / Saudi Arabia only", fillcolor="#FFFFFF", color="#ACD9CE"];
+  a3 [label="03  Curriculum\nResearch + alignment", fillcolor="#FFFFFF", color="#ACD9CE"];
+  a4 [label="04  Document Agent\nPDFs + guides", fillcolor="#FFFFFF", color="#ACD9CE"];
+  a5 [label="05  Marketing Agent\nCampaign drafts", fillcolor="#FFFFFF", color="#ACD9CE"];
+ }
+ subgraph cluster_tools {
+  label="04  MODEL, TOOLS & WORKFLOW SERVICES"; labelloc=t; labeljust=l; fontname="DejaVu Sans"; fontsize=13; fontcolor="#334155"; color="#DCE4EE"; style="rounded,filled"; fillcolor="#FAF5ED"; margin=17;
+  llm [label="LLM Provider Adapter\nGoogle Gemini API", fillcolor="#FFF9EC", color="#F0C985"];
+  mcpc [label="MCP Client\nApproved tool discovery and calls", fillcolor="#FFF9EC", color="#F0C985"];
+  mcps [label="FastMCP Tool Server\nAllowlisted, validated tool contracts", fillcolor="#FFF1D4", color="#E5B958", fontsize=12];
+  knowledge [label="Knowledge / RAG Service\nApproved sources + metadata filters\n400-token target / 60 overlap", fillcolor="#FFFFFF"];
+  business [label="Business Services\nCourses • leads • tenders\nCurricula • approvals • alerts", fillcolor="#FFFFFF"];
+  documents [label="File & Document Services\nValidate • version • PDF export", fillcolor="#FFFFFF"];
+  research [label="RFP Source Connectors\nOfficial APIs • permitted HTML\nManual document imports", fillcolor="#FFFFFF"];
+  review [label="HITL Checkpoints\nApproval / reject / request changes\nResume only after authorization", fillcolor="#E6F4F1", color="#8BC4B6"];
+ }
+ subgraph cluster_store {
+  label="05  PERSISTENCE & EXTERNAL DEPENDENCIES"; labelloc=t; labeljust=l; fontname="DejaVu Sans"; fontsize=13; fontcolor="#334155"; color="#DCE4EE"; style="rounded,filled"; fillcolor="#F0EFFB"; margin=17;
+  sql [label="SQLite\nSQLAlchemy + Alembic\nStructured data / audit / alerts", fillcolor="#F8F5FF", color="#C4B5E8"];
+  chroma [label="ChromaDB\nApproved 768-dim embeddings\nChunk IDs + source references", fillcolor="#F8F5FF", color="#C4B5E8"];
+  fs [label="Local File Store\nOriginals + generated documents\nStorage adapter for future cloud", fillcolor="#F8F5FF", color="#C4B5E8"];
+  embedding [label="Gemini Embedding 2\n768 dimensions", fillcolor="#F8F5FF", color="#C4B5E8"];
+  portals [label="Approved External Sources\nEgypt & Saudi procurement portals\nAcademy documents / standards", fillcolor="#F8F5FF", color="#C4B5E8"];
+ }
+
+ // Vertical spine; larger lane grouping preserves readability.
+ lead -> public_ui; admin -> admin_ui; schedule -> api [label="  signed request", fontsize=9];
+ public_ui -> api; admin_ui -> api;
+ api -> orch [weight=3];
+ orch -> a1; orch -> a2; orch -> a3; orch -> a4; orch -> a5;
+ a3 -> review [style=dashed, color="#3E8E7E", constraint=false];
+ a4 -> review [style=dashed, color="#3E8E7E", constraint=false];
+ a5 -> review [style=dashed, color="#3E8E7E", constraint=false];
+ orch -> llm [color="#C68C32", penwidth=1.5];
+ orch -> mcpc [color="#C68C32", penwidth=1.5];
+ mcpc -> mcps [penwidth=1.6, color="#C68C32"];
+ mcps -> knowledge; mcps -> business; mcps -> documents; mcps -> research;
+ knowledge -> chroma; knowledge -> embedding; knowledge -> fs [style=dashed, constraint=false];
+ business -> sql; documents -> fs; research -> portals;
+ review -> sql [color="#3E8E7E"];
+ // Backchannel relationships use dashed lines to avoid claiming synchronous flow.
+ review -> admin_ui [style=dashed, color="#3E8E7E", constraint=false];
+ business -> schedule [style=dashed, color="#C68C32", constraint=false, label="alert event", fontsize=9];
+ embedding -> chroma [color="#9E8CC0", constraint=false];
+ {rank=same; lead; admin; schedule;}
+ {rank=same; public_ui; admin_ui;}
+ {rank=same; a1; a2; a3; a4; a5;}
+ {rank=same; llm; mcpc; review;}
+ {rank=same; knowledge; business; documents; research;}
+ {rank=same; sql; chroma; fs; embedding; portals;}
+}
