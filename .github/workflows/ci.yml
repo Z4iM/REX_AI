@@ -54,4 +54,5 @@ jobs:
           python -m pytest \
             tests/test_api.py \
             tests/test_chunker.py \
+            tests/test_course_matcher.py \
             -v
