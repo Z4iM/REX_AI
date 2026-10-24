@@ -6,3 +6,6 @@ google-genai
 chromadb
 python-dotenv
 tiktoken
+pymupdf
+pymupdf>=2.0,<3
+python-docx>=1.2,<2
