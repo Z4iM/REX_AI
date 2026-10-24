@@ -148,3 +148,141 @@ def test_invalid_extraction_mode(tmp_path):
             pdf_path,
             extraction_mode="unsupported",
         )
+
+def make_scanned_pdf(tmp_path):
+    """Create an image-only PDF for realistic OCR testing."""
+
+    pdf_path = tmp_path / "scanned_course.pdf"
+
+    # Create a normal document first.
+    with pymupdf.open() as source:
+        page = source.new_page()
+
+        page.insert_text(
+            (72, 100),
+            "Python Training Program",
+            fontsize=24,
+        )
+
+        page.insert_text(
+            (72, 150),
+            "Duration 100 Hours",
+            fontsize=20,
+        )
+
+        # Convert the page into an image.
+        pixmap = page.get_pixmap(
+            matrix=pymupdf.Matrix(2, 2),
+            alpha=False,
+        )
+
+        image_bytes = pixmap.tobytes("png")
+
+    # Build a new PDF containing only the image.
+    with pymupdf.open() as scanned:
+        page = scanned.new_page()
+
+        page.insert_image(
+            page.rect,
+            stream=image_bytes,
+        )
+
+        scanned.save(pdf_path)
+
+    return pdf_path
+
+
+def test_scanned_pdf_with_ocr(tmp_path):
+    """OCR must recognize text inside an image-only PDF."""
+
+    pdf_path = make_scanned_pdf(tmp_path)
+
+    result = load_pdf(
+        pdf_path,
+        enable_ocr=True,
+        ocr_language="eng",
+    )
+
+    assert result["page_count"] == 1
+    assert result["ocr_pages"] == [1]
+    assert result["pages_without_text"] == []
+
+    section = result["sections"][0]
+
+    assert section["metadata"]["extraction_method"] == "ocr"
+
+    text = section["content"]
+
+    assert "Python Training Program" in text
+    assert "100 Hours" in text
+
+
+def test_scanned_pdf_without_ocr(tmp_path):
+    """Existing default behavior must stay unchanged."""
+
+    pdf_path = make_scanned_pdf(tmp_path)
+
+    with pytest.raises(
+        ValueError,
+        match="No extractable text",
+    ):
+        load_pdf(
+            pdf_path,
+            enable_ocr=False,
+        )
+
+
+def test_missing_ocr_language(tmp_path):
+    """Report missing language files clearly."""
+
+    pdf_path = make_scanned_pdf(tmp_path)
+
+    with pytest.raises(
+        ValueError,
+        match="Missing OCR language data",
+    ):
+        load_pdf(
+            pdf_path,
+            enable_ocr=True,
+            ocr_language="xyz_not_installed",
+        )
+
+def test_ocr_requires_extraction_review(tmp_path):
+    """OCR results should carry a review warning."""
+
+    pdf_path = make_scanned_pdf(tmp_path)
+
+    result = load_pdf(
+        pdf_path,
+        enable_ocr=True,
+        ocr_language="eng",
+    )
+
+    assert result["extraction_review_required"] is True
+    assert len(result["extraction_warnings"]) >= 1
+    assert "OCR" in result["extraction_warnings"][0]
+
+    # OCR never grants document approval.
+    assert result["approval_status"] == "unapproved"
+
+
+def test_normal_pdf_without_quality_warnings(tmp_path):
+    """Normal text extraction should not raise OCR warnings."""
+
+    pdf_path = tmp_path / "normal.pdf"
+
+    with pymupdf.open() as pdf:
+        page = pdf.new_page()
+        page.insert_text(
+            (72, 72),
+            "Python Programming Course",
+        )
+        pdf.save(pdf_path)
+
+    result = load_pdf(pdf_path)
+
+    assert result["extraction_review_required"] is False
+    assert result["extraction_warnings"] == []
+
+    # No quality warning does not mean the source is approved.
+    assert result["approval_status"] == "unapproved"

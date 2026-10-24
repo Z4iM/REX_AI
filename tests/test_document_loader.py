@@ -105,3 +105,115 @@ def test_unsupported_format(tmp_path):
 def test_missing_document(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_document(tmp_path / "missing.pdf")
+
+def test_unified_loader_scanned_pdf_ocr(tmp_path):
+    """
+    Verify that the unified loader forwards OCR options
+    and recognizes text from a scanned PDF.
+    """
+
+    pdf_path = tmp_path / "scanned_training.pdf"
+
+    # Create a normal PDF page.
+    with pymupdf.open() as source:
+
+        page = source.new_page()
+
+        page.insert_text(
+            (72, 120),
+            "Data Science Training Program",
+            fontsize=24,
+        )
+
+        page.insert_text(
+            (72, 170),
+            "Duration 100 Hours",
+            fontsize=20,
+        )
+
+        # Rasterize the page into an image.
+        pixmap = page.get_pixmap(
+            matrix=pymupdf.Matrix(2, 2),
+            alpha=False,
+        )
+
+        image_data = pixmap.tobytes("png")
+
+    # Create an image-only PDF.
+    with pymupdf.open() as scanned:
+
+        page = scanned.new_page()
+
+        page.insert_image(
+            page.rect,
+            stream=image_data,
+        )
+
+        scanned.save(pdf_path)
+
+    # Confirm there is no selectable text.
+    with pymupdf.open(pdf_path) as check:
+        assert not check[0].get_text().strip()
+
+    # Verify OCR is available through load_document.
+    result = load_document(
+        pdf_path,
+        enable_ocr=True,
+        ocr_language="eng",
+    )
+
+    assert result["file_type"] == "pdf"
+    assert result["ocr_pages"] == [1]
+    assert result["pages_without_text"] == []
+
+    section = result["sections"][0]
+
+    assert section["metadata"]["extraction_method"] == "ocr"
+
+    assert "Data Science Training Program" in (
+        section["content"]
+    )
+
+    assert "100 Hours" in section["content"]
+
+
+def test_unified_loader_without_ocr_on_scan(tmp_path):
+    """
+    Confirm OCR remains optional and disabled by default.
+    """
+
+    pdf_path = tmp_path / "image_only.pdf"
+
+    with pymupdf.open() as source:
+
+        page = source.new_page()
+        page.insert_text(
+            (72, 100),
+            "Python Course",
+            fontsize=24,
+        )
+
+        pixmap = page.get_pixmap(
+            matrix=pymupdf.Matrix(2, 2),
+            alpha=False,
+        )
+
+        image_data = pixmap.tobytes("png")
+
+    with pymupdf.open() as scanned:
+
+        page = scanned.new_page()
+        page.insert_image(
+            page.rect,
+            stream=image_data,
+        )
+        scanned.save(pdf_path)
+
+    with pytest.raises(
+        ValueError,
+        match="No extractable text",
+    ):
+        load_document(
+            pdf_path,
+            enable_ocr=False,
+        )

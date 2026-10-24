@@ -9,17 +9,25 @@ from backend.app.ingestion.docx_loader import load_docx
 SUPPORTED_EXTENSIONS = {".md", ".pdf", ".docx"}
 
 
-def load_document(file_path, pdf_extraction_mode="text"):
+def load_document(
+    file_path,
+    pdf_extraction_mode="text",
+    *,
+    enable_ocr=False,
+    ocr_language="eng",
+    ocr_dpi=200,
+):
     """
-    Load a supported document through the appropriate reader.
+    Unified document loader for REX AI.
 
-    Supported:
-        .md   - Markdown
-        .pdf  - PDF
-        .docx - Microsoft Word
+    Supported formats:
+        PDF  - Normal text, Markdown, optional OCR
+        DOCX - Paragraphs, headings, tables
+        MD   - Structured Markdown
 
-    The original loader output is preserved.
-    No approval, embedding, or database indexing happens here.
+    OCR options apply to PDF files only.
+
+    This function does not approve or index documents.
     """
 
     path = Path(file_path)
@@ -37,19 +45,23 @@ def load_document(file_path, pdf_extraction_mode="text"):
         )
 
     if extension == ".pdf":
+
         document = load_pdf(
             path,
             extraction_mode=pdf_extraction_mode,
+            enable_ocr=enable_ocr,
+            ocr_language=ocr_language,
+            ocr_dpi=ocr_dpi,
         )
 
     elif extension == ".docx":
+
         document = load_docx(path)
 
     else:
+
         document = load_markdown(path)
 
-    # Record which reader handled the document.
-    # Preserve each reader's existing output.
     document["file_type"] = extension.lstrip(".")
 
     return document
