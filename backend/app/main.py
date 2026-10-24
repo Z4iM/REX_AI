@@ -160,48 +160,6 @@ def qualification_chat(request: QualificationRequest):
         matching_error=matching_error
     )
 
-def qualification_chat(request: QualificationRequest):
-
-    # First message: create a new conversation.
-    if request.session_id is None:
-        session_id = str(uuid4())
-        session = QualificationSession()
-
-        sessions[session_id] = session
-
-    else:
-        # Existing conversation: retrieve its state.
-        session_id = request.session_id
-
-        session = sessions.get(session_id)
-
-        if session is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Conversation session not found"
-            )
-
-    if session.completed:
-        raise HTTPException(
-            status_code=409,
-            detail="Qualification already completed"
-        )
-
-    # Process the message and update the session.
-    result = process_qualification(
-        session,
-        request.message
-    )
-
-    return QualificationResponse(
-        session_id=session_id,
-        status=result["status"],
-        reply=result["reply"],
-        profile=result["profile"],
-        query=result["query"],
-        course_matches=matches,
-        matching_error=matching_error,
-    )
 
 # REX Assistant endpoint
 @app.post("/api/v1/chat", response_model=ChatResponse)

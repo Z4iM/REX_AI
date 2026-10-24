@@ -1,4 +1,7 @@
-
+from backend.app.assistant.course_matcher import (
+    parse_egp,
+    normalize_format,
+)
 from dataclasses import dataclass, field
 import re
 
@@ -104,12 +107,65 @@ def process_qualification(session, message):
     question = QUESTIONS[session.current_step]
     field_name = question["field"]
 
-    if message.lower() in {"skip", "تخطي", "تخطى"}:
+    skip_requested = message.casefold() in {
+        "skip",
+        "تخطي",
+        "تخطى",
+    }
+    # Validate the requested training format.
+    if (
+        field_name == "training_format"
+        and not skip_requested
+        and normalize_format(message) is None
+    ):
+        reply = (
+            "Please choose Online, On-site, or Hybrid. "
+            "You can also type 'skip'."
+            if session.language == "en"
+            else
+            "من فضلك اختار أونلاين، حضوري، أو هجين. "
+            "وممكن تكتب تخطي."
+        )
+
+        return {
+            "status": "question",
+            "reply": reply,
+            "profile": session.answers.copy(),
+            "query": None,
+        }
+
+
+    # Validate the student's budget before advancing.
+    if (
+        field_name == "budget"
+        and not skip_requested
+        and parse_egp(message) is None
+    ):
+        reply = (
+            "Please enter your budget in EGP, "
+            "for example: 4000 EGP. "
+            "Or type 'skip' if you prefer not to answer."
+            if session.language == "en"
+            else
+            "من فضلك اكتب الميزانية بالجنيه المصري، "
+            "مثلاً: 4000 جنيه. "
+            "أو اكتب تخطي لو مش عايز تجاوب."
+        )
+
+        return {
+            "status": "question",
+            "reply": reply,
+            "profile": session.answers.copy(),
+            "query": None,
+        }
+
+    if skip_requested:
         session.answers[field_name] = None
     else:
         session.answers[field_name] = message
 
     session.current_step += 1
+
 
     # Ask the next question.
     if session.current_step < len(QUESTIONS):
