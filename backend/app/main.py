@@ -41,7 +41,7 @@ app.include_router(demo_router)
 @app.get("/api/v1/system")
 def system_status():
     return {"mode": "demo" if runtime.is_demo() else "academy", "data_origin": runtime.origin(),
-            "notice": "TA DEMO: all course and tender examples are fictional." if runtime.is_demo()
+            "notice": "all course and tender examples are fictional." if runtime.is_demo()
             else "Academy mode: only reviewed, published course information is shown."}
 
 

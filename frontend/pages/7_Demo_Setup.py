@@ -1,10 +1,10 @@
 import streamlit as st
 from frontend.ui import api, header, require_staff
-header("TA demo setup", "Fictional examples, stored separately from academy records. Follow these steps in order.")
+header("Demo setup", "Fictional examples, stored separately from academy records. Follow these steps in order.")
 require_staff()
 status = api("GET", "/api/v1/system", staff=False)
 if not status or status["mode"] != "demo":
-    st.error("Start TA Demo mode with python scripts/run_demo.py")
+    st.error("Start Demo mode with python scripts/run_demo.py")
     st.stop()
 st.subheader("1. Load the example documents")
 st.write("Load four course documents with suggestions already filled in. You still review and publish each course yourself.")
@@ -30,4 +30,4 @@ st.write("Download the pack below. Upload negative_cases/reject_missing_informat
 if st.button("Prepare example pack download"):
     data = api("GET", "/api/v1/demo/examples.zip", binary=True)
     if data:
-        st.download_button("Download all TA examples", data, file_name="rex-ta-demo-examples.zip", mime="application/zip")
+        st.download_button("Download all Demo examples", data, file_name="rex-ta-demo-examples.zip", mime="application/zip")

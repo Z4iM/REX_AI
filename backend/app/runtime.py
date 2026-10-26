@@ -23,7 +23,7 @@ def catalog_dir():
         directory = Path(os.getenv("REX_DEMO_DATA_DIR") or ROOT / "data/demo").resolve() / "catalog"
         academy = Path(os.getenv("REX_CATALOG_DATA_DIR") or ROOT / "data/catalog").resolve()
         if directory == academy:
-            raise RuntimeError("TA demo and academy catalog directories must be different")
+            raise RuntimeError("demo and academy catalog directories must be different")
         return directory
     return Path(os.getenv("REX_CATALOG_DATA_DIR") or ROOT / "data/catalog").resolve()
 

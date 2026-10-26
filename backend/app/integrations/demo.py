@@ -16,7 +16,7 @@ EXAMPLES = Path(__file__).resolve().parents[3] / "examples" / "ta_demo"
 
 def demo_only():
     if not runtime.is_demo():
-        raise HTTPException(409, "Start TA Demo mode to use fictional examples")
+        raise HTTPException(409, "Start Demo mode to use fictional examples")
 
 router = APIRouter(prefix="/api/v1/demo", tags=["ta-demo"], dependencies=[Depends(require_catalog_admin), Depends(demo_only)])
 

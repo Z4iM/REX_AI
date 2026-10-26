@@ -81,7 +81,7 @@ def _write_and_prepare_locked(raw: bytes, name: str, suffix: str, enable_ocr: bo
     try:
         package = prepare_document_for_review(source_path, enable_ocr=enable_ocr)
         if not runtime.is_demo() and any("REX_SYNTHETIC_DEMO" in c["text"] for c in package["chunks"]):
-            raise HTTPException(409, "This is a TA demo fixture. Start TA Demo mode before uploading it.")
+            raise HTTPException(409, "This is a demo fixture. Start Demo mode before uploading it.")
         record = {
             "upload_id": digest,
             "filename": name,

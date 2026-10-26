@@ -10,7 +10,7 @@ def _blocks(record):
     ar = record["language"] == "ar"
     yield "title", record["content"]["title"]
     if record.get("data_origin") == "synthetic_demo":
-        yield "meta", "REX_SYNTHETIC_DEMO | FICTIONAL TA DEMONSTRATION | NOT A REAL ACADEMY OFFERING"
+        yield "meta", "REX_SYNTHETIC_DEMO | FICTIONAL DEMONSTRATION | NOT A REAL ACADEMY OFFERING"
     label = (("معتمد بعد المراجعة البشرية" if ar else "Approved after human review") if record["status"] == "approved"
              else ("مسودة للمراجعة البشرية" if ar else "Draft for human review"))
     yield "meta", label + f' | REX AI | v{record["version"]}'

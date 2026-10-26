@@ -39,7 +39,7 @@ def header(title, description):
     st.caption(description)
     status = api("GET", "/api/v1/system", staff=False)
     if status and status["mode"] == "demo":
-        st.warning("TA DEMO · Fictional examples for assessment. These are not real academy courses or tenders.")
+        st.warning("DEMO · Fictional examples for assessment. These are not real academy courses or tenders.")
     if message := st.session_state.pop("feedback", None):
         st.success(message)
     return status

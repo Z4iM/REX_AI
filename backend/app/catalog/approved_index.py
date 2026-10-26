@@ -105,7 +105,7 @@ def publish_course(course_id: str, *, collection=None,
         for faq in course.get("faqs", []):
             fields.append(f"FAQ: {faq['question']} Answer: {faq['answer']}")
         if course.get("data_origin") == "synthetic_demo":
-            fields.insert(0, "REX_SYNTHETIC_DEMO: fictional course information for TA demonstration only.")
+            fields.insert(0, "fictional course information for demonstration only.")
         for key, label in (("prerequisites", "Prerequisites"), ("learning_outcomes", "Learning outcomes")):
             if course.get(key):
                 fields.append(f"{label}: " + "; ".join(course[key]))

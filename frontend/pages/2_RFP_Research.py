@@ -13,12 +13,12 @@ with tab_list:
         params["country"] = "EG" if country == "Egypt" else "SA"
     result = api("GET", "/api/v1/rfp/opportunities", params=params)
     if result and not result["items"]:
-        st.info("No opportunities yet. Import a file in Add opportunities, or use the TA demo examples.")
+        st.info("No opportunities yet. Import a file in Add opportunities, or use the demo examples.")
     for item in (result or {}).get("items", []):
         with st.expander(item["title"]):
             st.write(f'{item["issuer"]} · {item["country_code"]} · Deadline: {item["deadline"] or "Needs verification"}')
             if item["data_mode"] == "synthetic_demo":
-                st.warning("Fictional TA example — not a live tender.")
+                st.warning("Fictional example — not a live tender.")
             st.write(item.get("summary") or item.get("description") or "No summary provided.")
             priority = {"high": "High priority (Egypt)", "monitor": "Monitor (Saudi Arabia)"}.get(item["priority"], "Priority needs review")
             st.caption(priority + " · " + ("Passed automatic filters" if item["filter_status"] == "accepted" else "Needs staff verification"))
