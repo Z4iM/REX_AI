@@ -56,3 +56,8 @@ jobs:
             tests/test_chunker.py \
             tests/test_course_matcher.py \
             -v
+      - name: Run offline automated tests
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest tests/ backend/app/agents/rfp/tests/ -q

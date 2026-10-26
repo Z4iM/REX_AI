@@ -1,3 +1,4 @@
+from backend.app.agents.rfp.router import build_router
 from uuid import uuid4
 from backend.app.assistant.qualification import (
     QualificationSession,
@@ -21,7 +22,7 @@ app = FastAPI(
     version="0.1.0"
 )
 
-
+app.include_router(build_router())
 # Request model
 
 class ChatRequest(BaseModel):

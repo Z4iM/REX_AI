@@ -1,0 +1,37 @@
+# REX AI - RFP sources.  type: folder | file | rss | html | gemini_search
+# Only enable a web source after you (1) read the portal's Terms of Use and (2) checked robots.txt.
+# Never bypass logins/captchas. Portals that require login (e.g. parts of etenders.gov.eg, Etimad bidding)
+# should be used through manual export -> drop the file into the imports/ folder.
+sources:
+  - name: manual_imports            # CSV / XLSX / JSON exported from Etimad, etenders.gov.eg, UNGM ...
+    type: folder
+    path: imports
+    enabled: true
+
+  - name: gemini_web_discovery      # AI search discovery. Results are ALWAYS 'needs_review'. Needs GEMINI_API_KEY.
+    type: gemini_search
+    enabled: true
+    queries:
+      - "training OR capacity building OR e-learning tender RFP open for bids in Egypt"
+      - "training OR digital transformation OR IT training tender RFP open for bids in Saudi Arabia (Etimad)"
+      - "UNGM request for proposal training Egypt"
+      - "UNGM request for proposal training Saudi Arabia"
+
+  # ---- TEMPLATES (disabled): adjust selectors per portal after checking Terms of Use ----
+  - name: example_html_portal
+    type: html
+    enabled: false
+    url: "https://example.org/tenders"
+    default_country: "Egypt"        # ONLY if this portal lists a single country's tenders
+    item_selector: "table.tenders tr"
+    fields:
+      title: "td.name a"
+      source_url: "td.name a@href"
+      issuer: "td.agency"
+      deadline: "td.deadline"
+
+  - name: example_rss_feed
+    type: rss
+    enabled: false
+    url: "https://example.org/tenders/rss.xml"
+    default_country: "Saudi Arabia"
