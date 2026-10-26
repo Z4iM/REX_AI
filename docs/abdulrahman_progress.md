@@ -150,3 +150,12 @@ The user authorized completing all independent AbdulRahman Sprint 2 milestones w
 - Runtime AI document generation remains three course-based types, with staff-reviewed templates, immutable revisions and protected Word/PDF downloads. The ten-type example pack does not imply ten implemented generators. Curriculum-dependent generation awaits Faris's approved Curriculum/Accreditation interface. Ahmed's AI Marketing Agent, complete team orchestration, deployed individual accounts/RBAC/TLS and final team review remain pending.
 - The shared staff key is development authentication, not individual staff-account identity. Review accuracy still requires a human; valid citations alone do not prove every generated sentence. Live provider availability can vary, and failed calls retain safe unpublished/draft state.
 - Start future TA runs with `python scripts/run_demo.py`; follow `examples/ta_demo/README.md`. Use academy mode only for authorized real course sources. No actual academy information was invented or replaced by the demo package.
+
+
+## 2026-10-26 — Sprint 2 release preparation
+
+- Publishing request explicitly authorizes committing, pushing `dev/abdulrahman` and merging into `main`. Commit metadata uses the configured AbdulRahman Adham Git identity.
+- Refreshed remote references and reconciled `origin/main` (`4617bb5`) with the completed local work. Preserved the integrated RFP engine, host authentication, isolated TA storage and guided frontend when resolving overlapping files. Faris's existing commits remain in the branch history.
+- Scanned all 151 publishable files against configured credential values and common credential patterns: no matches. `.env`, local databases, uploads, generated runtime data and logs are excluded. Added binary attributes for PDF/DOCX examples and verified committed binary contents match their original files.
+- Final integration validation: `python -m pytest tests/ backend/app/agents/rfp/tests/ -q --tb=short` — **374 passed, 3 opt-in checks skipped, 2 dependency deprecation warnings in 74.17 seconds**. Syntax compilation and staged whitespace checks passed. Paid workflows were already verified separately as recorded above and were not repeated for publishing.
+- GitHub pull request and CI history record the subsequent branch push and main merge outcome.

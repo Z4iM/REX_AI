@@ -1,9 +1,9 @@
 # REX AI — Codex Development Handoff
 
-**Date:** 2026-10-26  
-**Repository:** https://github.com/Z4iM/REX_AI  
-**Development branch:** `dev/abdulrahman`  
-**Workspace:** The currently open VS Code folder IS the REX_AI repository root. Work in that folder, not in a new clone/copy.  
+**Date:** 2026-10-26
+**Repository:** https://github.com/Z4iM/REX_AI
+**Development branch:** `dev/abdulrahman`
+**Workspace:** The currently open VS Code folder IS the REX_AI repository root. Work in that folder, not in a new clone/copy.
 **Team assignments (user clarification, 2026-10-26):** AbdulRahman Adham owns the REX Assistant, approved catalog/RAG, and Document Generation Agent. Faris Ahmed has completed the RFP Agent on his branch (user-reported) and will later implement the Curriculum Agent. Ahmed ElAbiad owns only the AI Marketing Agent. Branch completion does not establish integration into this checkout. These assignments supersede earlier task-division entries.
 
 ## Current continuation status — supersedes historical next-task notes below
