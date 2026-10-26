@@ -36,3 +36,15 @@ data/catalog/
 data/demo/
 data/rfp/
 backend/app/agents/rfp_data/
+
+# Local development handoffs, tool instructions and working notes
+*[Hh][Aa][Nn][Dd][Oo][Ff][Ff]*.[Mm][Dd]
+*[Cc][Oo][Dd][Ee][Xx]*.[Mm][Dd]
+[Ii][Nn][Tt][Ee][Gg][Rr][Aa][Tt][Ii][Oo][Nn].[Mm][Dd]
+AGENTS.md
+CLAUDE.md
+.codex/
+.claude/
+local-notes/
+LOCAL_NOTES.md
+docs/*_progress.md
