@@ -47,3 +47,14 @@ Run `python -m pytest tests/ -q` for offline tests. The paid Gemini smoke test i
 Run `python scripts/run_demo.py` and open http://127.0.0.1:8510. Select **Demo setup** and follow the guided workflow. The [example pack](examples/ta_demo/README.md) contains fictional course documents in PDF/Word/Markdown, tender cases, learner profiles, rejection cases and teaching reference materials. Demo storage is separate from academy storage; examples still require human review and publication.
 
 Faris's RFP engine from `origin/dev/faris` (`4331c89`) is integrated into the host FastAPI and Streamlit application with the existing staff key, persistent opportunity/history/alert storage, file imports and configured source discovery. No whole-branch merge was performed. Run `python -m pytest tests/ backend/app/agents/rfp/tests/ -q` to include both workstreams. See the current [TA walkthrough](docs/SPRINT2_TA_WALKTHROUGH.md) and [progress log](docs/abdulrahman_progress.md).
+
+
+### Optional scanned PDF OCR
+
+Scanned PDFs require Tesseract and the selected language data in addition to the Python requirements. Ordinary text PDFs, Word and Markdown do not require Tesseract. On Ubuntu/Debian:
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara
+```
+
+On other systems, install Tesseract and the required language files; set `TESSDATA_PREFIX` to their tessdata directory if automatic discovery is unavailable. The CI workflow installs English and Arabic OCR dependencies and runs the scanned-PDF tests.

@@ -159,3 +159,9 @@ The user authorized completing all independent AbdulRahman Sprint 2 milestones w
 - Scanned all 151 publishable files against configured credential values and common credential patterns: no matches. `.env`, local databases, uploads, generated runtime data and logs are excluded. Added binary attributes for PDF/DOCX examples and verified committed binary contents match their original files.
 - Final integration validation: `python -m pytest tests/ backend/app/agents/rfp/tests/ -q --tb=short` — **374 passed, 3 opt-in checks skipped, 2 dependency deprecation warnings in 74.17 seconds**. Syntax compilation and staged whitespace checks passed. Paid workflows were already verified separately as recorded above and were not repeated for publishing.
 - GitHub pull request and CI history record the subsequent branch push and main merge outcome.
+
+
+### Linux CI OCR dependency correction
+
+- The first PR CI run completed dependency installation and compilation, then reported 370 passed, 4 failed and 3 skipped. All four failures were scanned-PDF checks caused by missing native Tesseract on the Ubuntu runner; the Windows environment already had its OCR resources.
+- Added an explicit CI installation of Tesseract with English/Arabic language data and a language-discovery check, and documented the system dependency in README. No OCR tests were removed, weakened or skipped. The complete PR workflow is rerun on the corrective commit; GitHub records its result.

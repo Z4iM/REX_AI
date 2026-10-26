@@ -38,6 +38,12 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
+      - name: Install OCR dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara
+          tesseract --list-langs
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
