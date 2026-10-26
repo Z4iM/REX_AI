@@ -1,7 +1,7 @@
 
 # REX AI — Agent Responsibilities & Workflows
 
-**Sprint 2 update (2026-10-26):** Current ownership is AbdulRahman for the Assistant/catalog/RAG and Document Generation, Faris for RFP and later Curriculum, and Ahmed for AI Marketing only. The Assistant and three course-based document types are implemented locally, including persistent qualification, consent-based lead capture, staff review/versioning and DOCX/PDF outputs. The sections below retain the original target workflows; consult `docs/SPRINT2_TA_WALKTHROUGH.md` and `docs/abdulrahman_progress.md` for implemented capabilities and verification. Curriculum-based generation remains blocked on Faris's approved interface. Full team orchestration is not claimed by this branch.
+**Sprint 2 update (2026-10-26):** Current ownership is AbdulRahman for the Assistant/catalog/RAG and Document Generation, Faris for RFP and later Curriculum, and Ahmed for AI Marketing only. The Assistant and three course-based document types are implemented locally, including persistent qualification, consent-based lead capture, staff review/versioning and DOCX/PDF outputs. The sections below retain the original target workflows; consult `docs/SPRINT2_TA_WALKTHROUGH.md` for implemented capabilities and verification. Curriculum-based generation remains blocked on Faris's approved interface. Full team orchestration is not claimed by this branch.
 
 ## 1. Project Overview
 

@@ -51,7 +51,7 @@ python -m pytest tests/test_live_sprint2.py -q
 Remove-Item Env:REX_RUN_LIVE_TESTS
 ```
 
-Offline tests mock the AI boundary but include actual SQLite, real Chroma persistence, source-file parsing, rendered files, Streamlit actions and subprocess startup. Live checks cover real publication/search/answers, recommendations, AI extraction, document generation and Faris's summaries. They do not submit tenders or contact anyone. Current results are in [the progress log](abdulrahman_progress.md).
+Offline tests mock the AI boundary but include actual SQLite, real Chroma persistence, source-file parsing, rendered files, Streamlit actions and subprocess startup. Live checks cover real publication/search/answers, recommendations, AI extraction, document generation and Faris's summaries. They do not submit tenders or contact anyone. Use the commands above to verify your checkout; GitHub Actions records release test results.
 
 ## Boundaries still pending
 
