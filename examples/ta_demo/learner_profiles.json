@@ -1,0 +1,26 @@
+{
+  "notice": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender.",
+  "examples": [
+    {
+      "goal": "Learn Python for office automation",
+      "level": "Beginner",
+      "budget": "3000 EGP",
+      "format": "Online",
+      "expected": "DEMO-PY-101 is a candidate; prerequisites still require review."
+    },
+    {
+      "goal": "Cloud operations",
+      "level": "Beginner",
+      "budget": "1000 EGP",
+      "format": "Online",
+      "expected": "No suitable cloud match. Do not recommend the advanced onsite course."
+    },
+    {
+      "goal": "Data analysis",
+      "level": "Intermediate",
+      "budget": "6000 EGP",
+      "format": "Hybrid",
+      "expected": "DEMO-DA-201 is a candidate."
+    }
+  ]
+}

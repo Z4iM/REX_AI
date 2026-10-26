@@ -1,7 +1,7 @@
 
 import pytest
 from fastapi.testclient import TestClient
-
+from backend.app import main as main_module
 from backend.app.main import app
 
 
@@ -86,3 +86,56 @@ def test_chat_get_not_allowed(client):
     response = client.get("/api/v1/chat")
 
     assert response.status_code == 405
+
+def test_qualification_handler_matches_registered_route():
+    """Ensure the API handler isn't shadowed by a duplicate."""
+
+    route = next(
+        route
+        for route in app.routes
+        if getattr(route, "path", None)
+        == "/api/v1/qualification"
+        and "POST" in getattr(route, "methods", set())
+    )
+
+    assert route.endpoint is main_module.qualification_chat
+
+
+def test_complete_qualification_api_flow(client):
+    """Verify the complete qualification and matching workflow."""
+
+    messages = [
+        "I want to learn Data Science",
+        "Computer Science graduate",
+        "Beginner",
+        "Data Analyst",
+        "Online",
+        "4000 EGP",
+        "10 hours",
+    ]
+
+    session_id = None
+
+    for message in messages:
+        payload = {"message": message}
+
+        if session_id is not None:
+            payload["session_id"] = session_id
+
+        response = client.post(
+            "/api/v1/qualification",
+            json=payload,
+        )
+
+        assert response.status_code == 200, response.text
+
+        result = response.json()
+        session_id = result["session_id"]
+
+    assert result["status"] == "ready"
+    assert result["matching_error"] is None
+    assert isinstance(result["course_matches"], list)
+    assert result["course_matches"] == []  # No published academy data in this isolated test.
+
+    # Confirm the previously validated budget was preserved.
+    assert result["profile"]["budget"] == "4000 EGP"

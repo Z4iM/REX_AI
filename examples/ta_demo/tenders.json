@@ -1,0 +1,70 @@
+{
+  "notice": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender.",
+  "items": [
+    {
+      "title": "Python staff training REX_SYNTHETIC_DEMO",
+      "issuer": "Cedar Demo Organisation 1",
+      "country": "Egypt",
+      "publication_date": "2026-10-24",
+      "deadline": "2026-12-25",
+      "category": "IT training",
+      "description": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender. Training and professional development for fictional employees.",
+      "source_url": "https://example.invalid/rex-demo/tender/1",
+      "submission_url": "https://example.invalid/rex-demo/apply/1",
+      "eligibility": "Fictional training provider only",
+      "data_mode": "synthetic_demo"
+    },
+    {
+      "title": "Data analysis capacity building REX_SYNTHETIC_DEMO",
+      "issuer": "Cedar Demo Organisation 2",
+      "country": "Saudi Arabia",
+      "publication_date": "2026-10-24",
+      "deadline": "2026-12-25",
+      "category": "IT training",
+      "description": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender. Training and professional development for fictional employees.",
+      "source_url": "https://example.invalid/rex-demo/tender/2",
+      "submission_url": "https://example.invalid/rex-demo/apply/2",
+      "eligibility": "Fictional training provider only",
+      "data_mode": "synthetic_demo"
+    },
+    {
+      "title": "Software training REX_SYNTHETIC_DEMO",
+      "issuer": "Cedar Demo Organisation 3",
+      "country": "Germany",
+      "publication_date": "2026-10-24",
+      "deadline": "2026-12-25",
+      "category": "IT training",
+      "description": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender. Training and professional development for fictional employees.",
+      "source_url": "https://example.invalid/rex-demo/tender/3",
+      "submission_url": "https://example.invalid/rex-demo/apply/3",
+      "eligibility": "Fictional training provider only",
+      "data_mode": "synthetic_demo"
+    },
+    {
+      "title": "Expired cloud training REX_SYNTHETIC_DEMO",
+      "issuer": "Cedar Demo Organisation 4",
+      "country": "Egypt",
+      "publication_date": "2026-10-24",
+      "deadline": "2026-10-25",
+      "category": "IT training",
+      "description": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender. Training and professional development for fictional employees.",
+      "source_url": "https://example.invalid/rex-demo/tender/4",
+      "submission_url": "https://example.invalid/rex-demo/apply/4",
+      "eligibility": "Fictional training provider only",
+      "data_mode": "synthetic_demo"
+    },
+    {
+      "title": "Python staff training REX_SYNTHETIC_DEMO",
+      "issuer": "Cedar Demo Organisation 1",
+      "country": "Egypt",
+      "publication_date": "2026-10-24",
+      "deadline": "2026-12-25",
+      "category": "IT training",
+      "description": "REX_SYNTHETIC_DEMO | Fictional TA example. No real academy offering, instructor, accreditation or tender. Training and professional development for fictional employees.",
+      "source_url": "https://example.invalid/rex-demo/tender/1",
+      "submission_url": "https://example.invalid/rex-demo/apply/1",
+      "eligibility": "Fictional training provider only",
+      "data_mode": "synthetic_demo"
+    }
+  ]
+}

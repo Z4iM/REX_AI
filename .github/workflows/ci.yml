@@ -38,6 +38,12 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
+      - name: Install OCR dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara
+          tesseract --list-langs
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -47,15 +53,6 @@ jobs:
         run: |
           python -m compileall -q backend frontend
 
-      - name: Run offline automated tests
-        env:
-          PYTHONPATH: .
-        run: |
-          python -m pytest \
-            tests/test_api.py \
-            tests/test_chunker.py \
-            tests/test_course_matcher.py \
-            -v
       - name: Run offline automated tests
         env:
           PYTHONPATH: .
