@@ -1,0 +1,5 @@
+date,category,amount,data_origin
+2026-10-01,books,120,REX_SYNTHETIC_DEMO
+2026-10-02,transport,-15,REX_SYNTHETIC_DEMO
+2026-10-03,stationery,apple,REX_SYNTHETIC_DEMO
+2026-10-04,books,,REX_SYNTHETIC_DEMO

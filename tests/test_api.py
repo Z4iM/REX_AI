@@ -135,7 +135,7 @@ def test_complete_qualification_api_flow(client):
     assert result["status"] == "ready"
     assert result["matching_error"] is None
     assert isinstance(result["course_matches"], list)
-    assert len(result["course_matches"]) == 5
+    assert result["course_matches"] == []  # No published academy data in this isolated test.
 
     # Confirm the previously validated budget was preserved.
     assert result["profile"]["budget"] == "4000 EGP"

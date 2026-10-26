@@ -51,8 +51,4 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          python -m pytest \
-            tests/test_api.py \
-            tests/test_chunker.py \
-            tests/test_course_matcher.py \
-            -v
+          python -m pytest tests/ backend/app/agents/rfp/tests/ -q

@@ -1,25 +1,24 @@
 
+import os
 import requests
 import streamlit as st
 
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("REX_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
 def render_guided_recommendation():
 
     st.divider()
-    st.header("🎯 Guided Course Recommendation")
+    st.header("Help me choose a course")
 
     st.caption(
         "Answer a few questions and REX AI will help "
         "you find suitable courses."
     )
+    st.caption("Learning answers are stored for up to seven days and used with the configured Gemini provider for recommendations. "
+               "Keep sensitive personal information out of learning answers. Contact details are optional and stay in the staff system.")
 
-    st.warning(
-        "SYNTHETIC DEMO: All course information is fictional "
-        "and used for development and testing."
-    )
 
     # ---------------------------------
     # 1. Initialize Session State
@@ -47,7 +46,7 @@ def render_guided_recommendation():
     # 2. Reset Qualification
     # ---------------------------------
 
-    if st.button("🔄 Start New Qualification"):
+    if st.button("Start again"):
 
         st.session_state.qualification_id = None
         st.session_state.qualification_messages = []
@@ -75,40 +74,55 @@ def render_guided_recommendation():
 
     if status == "ready":
 
-        st.success("✅ Your learner profile is ready!")
+        st.success("Your learner profile is ready!")
 
-        st.subheader("📋 Collected Profile")
+        with st.expander("Optional academy follow-up"):
+            with st.form("learner_follow_up"):
+                lead_name = st.text_input("Your name", max_chars=120)
+                lead_email = st.text_input("Email address (or provide a phone number)", max_chars=254)
+                lead_phone = st.text_input("Phone number (optional)", max_chars=40)
+                consent = st.checkbox("I agree that academy staff may use my contact details and learner profile for training follow-up, for up to 30 days.")
+                save_contact = st.form_submit_button("Save follow-up request")
+            if save_contact:
+                if not consent or len(lead_name.strip()) < 2 or not (lead_email.strip() or lead_phone.strip()):
+                    st.error("Enter your name, a contact method, and explicit consent.")
+                else:
+                    try:
+                        saved = requests.post(f"{API_URL}/api/v1/qualification/{st.session_state.qualification_id}/lead",
+                            json={"name": lead_name, "email": lead_email.strip() or None,
+                                  "phone": lead_phone.strip() or None, "consent": consent}, timeout=20)
+                        saved.raise_for_status()
+                        st.success("Follow-up request saved for academy staff.")
+                    except requests.exceptions.RequestException:
+                        st.error("Could not save your request. Check your contact details or try again.")
+            if st.button("Withdraw follow-up consent"):
+                try:
+                    response = requests.delete(f"{API_URL}/api/v1/qualification/{st.session_state.qualification_id}/lead", timeout=20)
+                    response.raise_for_status()
+                    st.success("Your follow-up contact record was removed.")
+                except requests.exceptions.RequestException:
+                    st.error("Could not remove the follow-up request. Please retry.")
 
-        st.json(
-            st.session_state.qualification_profile
-        )
+        with st.expander("Your learning preferences"):
+            for label, value in st.session_state.qualification_profile.items():
+                st.write(label.replace("_", " ").title() + ": " + str(value or "Not specified"))
 
         # Display constraint matching results
         matches = st.session_state.qualification_matches
 
         if matches is not None:
 
-            st.subheader("📊 Course Constraint Results")
-
-            st.dataframe(
-                matches,
-                width="stretch",
-                hide_index=True,
-            )
-
-            st.caption(
-                "These results evaluate budget and training "
-                "format only. They do not establish overall "
-                "course suitability."
-            )
-
-        st.divider()
+            with st.expander("How courses compare with your preferences"):
+                for match in matches:
+                    st.write(match.get("title") or match.get("course_id") or "Course")
+                    st.write(match.get("match_reason") or match.get("reason") or match)
+            st.caption("Matching preferences does not confirm prerequisites or overall suitability. Review the course requirements.")
 
         # ---------------------------------
         # 5. Personalized Recommendation
         # ---------------------------------
 
-        st.subheader("🤖 AI Course Recommendation")
+        st.subheader("AI Course Recommendation")
 
         recommendation = (
             st.session_state.qualification_recommendation
@@ -117,7 +131,7 @@ def render_guided_recommendation():
         if recommendation is None:
 
             if st.button(
-                "🎯 Generate My Recommendation",
+                "Generate My Recommendation",
                 type="primary",
                 key="generate_recommendation",
             ):
@@ -135,7 +149,7 @@ def render_guided_recommendation():
                         response = requests.post(
                             f"{API_URL}/api/v1/qualification/"
                             f"{session_id}/recommendation",
-                            timeout=120,
+                            timeout=180,
                         )
 
                         response.raise_for_status()
@@ -250,7 +264,7 @@ def render_guided_recommendation():
             if sources:
 
                 with st.expander(
-                    "📚 View Recommendation Sources"
+                    "View Recommendation Sources"
                 ):
 
                     for source in sources:
@@ -266,8 +280,8 @@ def render_guided_recommendation():
                         )
 
             st.caption(
-                "SYNTHETIC DEMO — These courses are not "
-                "verified Andalusia Academy offerings."
+                "Only published, staff-reviewed courses are considered. "
+                "Prerequisites and overall suitability require staff confirmation."
             )
 
         return
@@ -333,8 +347,8 @@ def render_guided_recommendation():
             st.error(
                 "Could not continue qualification. "
                 "Check the backend connection. "
-                "If the backend restarted, start a "
-                "new qualification session."
+                        "If your session expired or was deleted, start a "
+                        "new qualification session."
             )
 
             return

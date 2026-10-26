@@ -11,6 +11,10 @@ from google.genai import types
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
+import pytest
+if os.getenv("REX_RUN_LIVE_TESTS") != "1":
+    pytest.skip("Set REX_RUN_LIVE_TESTS=1 to spend Gemini quota", allow_module_level=True)
+
 API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv(
     "GEMINI_EMBEDDING_MODEL",
