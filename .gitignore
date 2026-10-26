@@ -32,3 +32,7 @@ data/raw/
 
 # ChromaDB persistent storage
 data/chroma/
+
+data/rfp/imports/
+data/rfp/*.bak
+data/rfp/*.bak*
