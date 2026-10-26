@@ -4,14 +4,27 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from pathlib import Path
+
+import pytest
+from streamlit.testing.v1 import AppTest
+
+APP_FILE = Path(__file__).with_name("_dashboard_app.py")
 
 ROOT = Path(__file__).parent.parent.parent
 
 
 @pytest.fixture()
 def app(tmp_path, monkeypatch):
-    monkeypatch.setenv("RFP_DATABASE_URL", f"sqlite:///{tmp_path / 'ui.db'}")
-    return AppTest.from_file(str(ROOT / "dashboard.py"), default_timeout=60).run()
+    monkeypatch.setenv(
+        "RFP_DATABASE_URL",
+        f"sqlite:///{tmp_path / 'ui.db'}"
+    )
+
+    return AppTest.from_file(
+        str(APP_FILE),
+        default_timeout=60,
+    ).run()
 
 
 def click(at, key):

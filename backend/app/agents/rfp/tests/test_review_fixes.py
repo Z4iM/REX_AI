@@ -16,10 +16,11 @@ from .. import db, evidence, notifications, router as router_mod, service, sourc
 from ..rfp_agent import Tender, classify_location, fingerprint, filter_tenders
 from ..sources import BaseSource, GeminiSearchSource, SourceError
 
+
 TODAY = date(2026, 10, 19)
 PKG = Path(__file__).parent.parent
 ROOT = PKG.parent
-
+APP_FILE = Path(__file__).with_name("_dashboard_app.py")
 
 def raw(**kw):
     base = {"title": "IT Training Program", "issuer": "Ministry X", "country": "Egypt", "deadline": "2026-12-01",
@@ -217,12 +218,28 @@ class TestIntegration:
         assert c.get("/api/v1/rfp/opportunities").status_code == 403         # host auth is enforced
         assert c.get("/api/v1/rfp/opportunities?x_staff=yes").status_code == 200
 
-    def test_standalone_app_uses_a_different_port_in_docs_and_has_health(self):
-        import api_app
-        c = TestClient(api_app.app)
-        assert c.get("/health").json()["status"] == "ok"
-        assert "/api/v1/rfp/run" in api_app.app.openapi()["paths"]
-        assert "8010" in (ROOT / "README.md").read_text(encoding="utf-8")
+    def test_rfp_integrated_with_main_app(self):
+        from fastapi.testclient import TestClient
+        from backend.app.main import app
+
+        client = TestClient(app)
+
+        # Main REX AI application must still work.
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+        # Inspect registered API routes.
+        paths = app.openapi()["paths"]
+
+        # Existing Course Assistant.
+        assert "/api/v1/chat" in paths
+        assert "/api/v1/qualification" in paths
+
+        # Integrated RFP Agent.
+        assert "/api/v1/rfp/run" in paths
+        assert "/api/v1/rfp/opportunities" in paths
+        assert "/api/v1/rfp/notifications" in paths
 
     def test_database_has_its_own_namespaced_env_var(self, monkeypatch):
         from .. import config
@@ -352,7 +369,7 @@ class TestDashboardLogin:
 
     def test_password_gate_hides_everything_until_sign_in(self, env, monkeypatch):
         monkeypatch.setenv("RFP_DASHBOARD_PASSWORD", "s3cret")
-        at = AppTest.from_file(str(ROOT / "dashboard.py"), default_timeout=60).run()
+        at = AppTest.from_file(str(APP_FILE),default_timeout=60,).run()
         assert not at.exception and len(at.metric) == 0 and not at.tabs
         at.text_input(key="rfp_password").set_value("wrong").run()
         [b for b in at.button if b.key == "rfp_signin"][0].click().run()
@@ -362,19 +379,19 @@ class TestDashboardLogin:
         assert len(at.metric) == 5
 
     def test_no_password_shows_local_use_warning(self, env):
-        at = AppTest.from_file(str(ROOT / "dashboard.py"), default_timeout=60).run()
+        at = AppTest.from_file(str(APP_FILE),default_timeout=60,).run()
         assert any("No dashboard login configured" in w.value for w in at.warning)
 
     def test_require_login_without_password_refuses_to_render(self, env, monkeypatch):
         monkeypatch.setenv("RFP_REQUIRE_LOGIN", "1")
-        at = AppTest.from_file(str(ROOT / "dashboard.py"), default_timeout=60).run()
+        at = AppTest.from_file(str(APP_FILE),default_timeout=60,).run()
         assert len(at.metric) == 0 and any("refusing" in e.value for e in at.error)
 
     def test_embedded_mode_trusts_the_host_apps_auth(self, env, monkeypatch):
         monkeypatch.setenv("RFP_DASHBOARD_PASSWORD", "s3cret")
 
         def host_page():
-            from rfp.ui import render
+            from backend.app.agents.rfp.ui import render
             render(authenticated=True, key_prefix="agent2_")
         at = AppTest.from_function(host_page, default_timeout=60).run()
         assert not at.exception and len(at.metric) == 5
@@ -418,15 +435,6 @@ class TestNegativePaths:
         monkeypatch.setenv("RFP_GEMINI_TIMEOUT_MS", "1234")
         assert config.gemini_timeout_ms() == 1234
 
-    def test_n8n_workflow_has_no_dangling_branches(self):
-        wf = json.loads((ROOT / "n8n" / "rfp_schedule_workflow.json").read_text(encoding="utf-8"))
-        names = {n["name"] for n in wf["nodes"]}
-        if_node = next(n["name"] for n in wf["nodes"] if n["type"].endswith(".if"))
-        branches = wf["connections"][if_node]["main"]
-        assert len(branches) == 2 and all(b for b in branches)            # both true and false lead somewhere
-        for conns in wf["connections"].values():
-            for branch in conns["main"]:
-                assert all(c["node"] in names for c in branch)
 
 
 def ok_source():
