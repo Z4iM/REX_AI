@@ -1,12 +1,23 @@
 """Keep every automated test away from local academy data and credentials."""
+import os
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def isolated_application_data(tmp_path, monkeypatch):
     monkeypatch.setenv("REX_APP_MODE", "academy")
+    monkeypatch.setenv("REX_AI_PROVIDER", "gemini")
+    # Empty values also prevent load_dotenv() in lazily imported modules from
+    # restoring real local credentials. Live tests explicitly opt in themselves.
+    for variable in ("GROQ_API_KEY", "GOOGLE_API_KEY", "SMTP_HOST",
+                     "SMTP_PASSWORD", "ALERT_EMAILS", "N8N_WEBHOOK_URL", "REX_MCP_STAFF_KEY"):
+        monkeypatch.setenv(variable, "")
+    if os.getenv("REX_RUN_LIVE_TESTS") != "1":
+        monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("REX_RETRIEVAL_BACKEND", "gemini")
     monkeypatch.setenv("REX_CATALOG_DATA_DIR", str(tmp_path / "catalog"))
     monkeypatch.setenv("RFP_DATA_DIR", str(tmp_path / "rfp"))
+    monkeypatch.setenv("REX_CURRICULUM_DIR", str(tmp_path / "curriculum"))
     monkeypatch.delenv("RFP_DATABASE_URL", raising=False)
     monkeypatch.setenv("EMBEDDING_DIMENSIONS", "768")
 

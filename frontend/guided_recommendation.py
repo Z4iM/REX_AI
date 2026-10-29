@@ -16,7 +16,7 @@ def render_guided_recommendation():
         "Answer a few questions and REX AI will help "
         "you find suitable courses."
     )
-    st.caption("Learning answers are stored for up to seven days and used with the configured Gemini provider for recommendations. "
+    st.caption("Learning answers are stored for up to seven days and used with the configured AI provider for recommendations. "
                "Keep sensitive personal information out of learning answers. Contact details are optional and stay in the staff system.")
 
 
@@ -250,7 +250,7 @@ def render_guided_recommendation():
 
             if eligible:
 
-                st.subheader("✅ Eligible by Checked Constraints")
+                st.subheader("Matches your checked preferences", icon=":material/verified:")
 
                 st.dataframe(
                     eligible,

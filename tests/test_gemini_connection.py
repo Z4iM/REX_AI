@@ -1,58 +1,21 @@
-
+"""Explicit opt-in Gemini embedding smoke test; no calls during collection."""
 import os
-from pathlib import Path
-
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-
-
-# Load environment variables from the project root
-ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT / ".env")
-
 import pytest
-if os.getenv("REX_RUN_LIVE_TESTS") != "1":
-    pytest.skip("Set REX_RUN_LIVE_TESTS=1 to spend Gemini quota", allow_module_level=True)
 
-API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL = os.getenv(
-    "GEMINI_EMBEDDING_MODEL",
-    "gemini-embedding-2"
-)
-DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
-
-if not API_KEY:
-    raise ValueError("GEMINI_API_KEY is missing from .env")
+pytestmark = pytest.mark.skipif(os.getenv("REX_RUN_LIVE_TESTS") != "1", reason="Live Gemini quota usage is explicitly opt-in")
 
 
-# Initialize Gemini client
-client = genai.Client(api_key=API_KEY)
-
-# Synthetic test text
-text = """
-Python for Data Analytics is a beginner course
-that teaches Python, Pandas, NumPy, and data visualization.
-"""
-
-print("Connecting to Gemini...")
-print("Embedding model:", MODEL)
-
-# Generate embedding
-response = client.models.embed_content(
-    model=MODEL,
-    contents=text,
-    config=types.EmbedContentConfig(
-        output_dimensionality=DIMENSIONS
-    )
-)
-
-embedding = response.embeddings[0].values
-
-print("Embedding dimensions:", len(embedding))
-print("First 5 embedding values:", embedding[:5])
-
-assert len(embedding) == DIMENSIONS
-assert all(isinstance(x, (int, float)) for x in embedding)
-
-print("\nGemini embedding test PASSED!")
+def test_live_gemini_embedding_dimensions():
+    from google import genai
+    from google.genai import types
+    key = os.getenv("GEMINI_API_KEY")
+    if not key:
+        pytest.skip("Configure GEMINI_API_KEY locally for the optional Gemini check")
+    dimensions = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
+    with genai.Client(api_key=key, http_options=types.HttpOptions(timeout=45000)) as client:
+        response = client.models.embed_content(
+            model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-2"),
+            contents="Synthetic embedding connectivity check: Python learning objectives.",
+            config=types.EmbedContentConfig(output_dimensionality=dimensions))
+    assert response.embeddings and len(response.embeddings[0].values) == dimensions
+    assert all(isinstance(value, (int, float)) for value in response.embeddings[0].values)

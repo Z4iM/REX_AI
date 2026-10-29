@@ -83,6 +83,8 @@ def publish_course(course_id: str, *, collection=None,
     upload_id = course["upload_id"]
     review = store.load_upload(upload_id)
     store.require_unrejected_upload(review)
+    if os.getenv("REX_RETRIEVAL_BACKEND", "gemini") == "sqlite" and collection is None and embedder is None:
+        return _publish_local(course, refresh=refresh)
     emb = embedder or (lambda texts, query=False: _embed(texts, query=query))
     try:
         col = collection if collection is not None else _collection()
@@ -166,6 +168,8 @@ def search_approved_courses(query: str, top_k: int = 5, *, collection=None,
         raise ValueError("top_k must be 1-30")
     if not store.list_courses():
         return []
+    if os.getenv("REX_RETRIEVAL_BACKEND", "gemini") == "sqlite" and collection is None and embedder is None:
+        return _search_local(query, top_k)
     col = collection if collection is not None else _collection()
     if not col.count():
         return []
@@ -202,3 +206,78 @@ def remove_course_vectors(course_id: str, *, collection=None) -> bool:
         return True
     except Exception:
         return False
+
+
+def _local_schema(con):
+    con.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS approved_course_fts USING fts5(
+        course_id UNINDEXED, source_sha256 UNINDEXED, approval_revision UNINDEXED, content,
+        tokenize='unicode61 remove_diacritics 2')""")
+
+
+def _local_text(course):
+    import json
+    fields = ("course_id", "title", "description", "level", "training_format", "price_egp", "duration_hours",
+              "department", "prerequisites", "learning_outcomes", "instructor_name", "instructor_bio",
+              "schedule", "offers", "target_audience", "career_opportunities", "admission_requirements", "faqs")
+    text = "\n".join(k.replace('_', ' ').title() + ": " +
+                     (json.dumps(course[k], ensure_ascii=False) if isinstance(course[k], (list, dict)) else str(course[k]))
+                     for k in fields if course.get(k) is not None)
+    if course.get("data_origin") == "synthetic_demo":
+        text = "FICTIONAL DEMONSTRATION ONLY\n" + text
+    return text
+
+
+def _save_local(con, course):
+    con.execute("DELETE FROM approved_course_fts WHERE course_id=?", (course["course_id"],))
+    con.execute("INSERT INTO approved_course_fts VALUES (?,?,?,?)",
+                (course["course_id"], course["source_sha256"], course["reviewed_at"], _local_text(course)))
+
+
+def _publish_local(course, refresh=False):
+    try:
+        with store.catalog_transaction() as con:
+            _local_schema(con)
+            _save_local(con, course)
+        store.set_published(course["course_id"], course["upload_id"],
+                            expected_reviewed_at=course["reviewed_at"], refresh=refresh)
+        return {"course_id": course["course_id"], "status": "published", "indexed_chunks": 1,
+                "source_sha256": course["source_sha256"], "retrieval_backend": "sqlite_fts5"}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        store.mark_index_failed(course["course_id"], course["upload_id"], type(exc).__name__)
+        raise HTTPException(503, "Local publication unavailable; approval retained for retry") from None
+
+
+def _search_local(query, top_k):
+    import re
+    aliases = {"بايثون": "Python", "الدورات": "course", "دورات": "course", "الدورة": "course",
+               "السعر": "price", "التكلفة": "price", "الرسوم": "price", "المدة": "duration",
+               "المدرب": "instructor", "المتطلبات": "prerequisites", "العروض": "offers", "المواعيد": "schedule",
+               "courses": "course", "cost": "price", "fees": "price", "teacher": "instructor"}
+    words = re.findall(r"[^\W_]+", query, flags=re.UNICODE)
+    terms = list(dict.fromkeys(words + [aliases[w.casefold()] for w in words if w.casefold() in aliases]))[:40]
+    if not terms:
+        return []
+    # Index only published staff-verified fields. This also migrates retrieval for
+    # previously published Gemini records without unpublishing or reapproving them.
+    courses = [store.get_course(c["course_id"], staff=True) for c in store.list_courses()]
+    with store.catalog_transaction() as con:
+        _local_schema(con)
+        for c in courses:
+            _save_local(con, c)
+        rows = con.execute("SELECT course_id,source_sha256,approval_revision,content,bm25(approved_course_fts) AS rank "
+                           "FROM approved_course_fts WHERE approved_course_fts MATCH ? ORDER BY rank LIMIT ?",
+                           (' OR '.join('"' + t + '"' for t in terms), top_k)).fetchall()
+    results = []
+    for row in rows:
+        if not store.is_published(row["course_id"], row["source_sha256"], row["approval_revision"]):
+            continue
+        c = store.get_course(row["course_id"], staff=True)
+        review = store.load_upload(c["upload_id"])
+        store.require_unrejected_upload(review)
+        results.append({"course_id": row["course_id"], "course_title": c["title"], "source_file": review["filename"],
+                        "source_sha256": row["source_sha256"], "approval_revision": row["approval_revision"],
+                        "section": "Staff-approved catalog record", "content": row["content"],
+                        "distance": row["rank"], "page_number": None})
+    return results

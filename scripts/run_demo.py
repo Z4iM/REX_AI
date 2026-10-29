@@ -1,4 +1,4 @@
-"""Start an isolated TA backend and UI. Ctrl+C stops only the processes this script starts."""
+"""Start an isolated sample backend and UI. Ctrl+C stops only the processes this script starts."""
 import os
 import socket
 import subprocess

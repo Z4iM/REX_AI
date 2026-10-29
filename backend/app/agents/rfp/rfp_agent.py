@@ -331,30 +331,34 @@ def summarize_tender(t: Tender, client=None, model: Optional[str] = None) -> dic
     """Call Gemini (with a request timeout). On any failure return a safe fallback - never crash the pipeline."""
     from . import config
     fallback = {"summary": None, "eligibility_assessment": "unclear",
-                "eligibility_notes": "Summary unavailable (Gemini call failed)."}
+                "eligibility_notes": "Summary unavailable (AI provider call failed)."}
     try:
         from google import genai
         from google.genai import types
 
-        api_key = os.getenv("GEMINI_API_KEY")
-        if client is None:
-            if not api_key:
-                return {**fallback, "eligibility_notes": "GEMINI_API_KEY not set."}
-            client = genai.Client(api_key=api_key, http_options=types.HttpOptions(
-                timeout=int(os.getenv("RFP_GEMINI_TIMEOUT_MS", "60000"))))
+        from backend.app.ai import provider, generate_json
+        if client is None and provider() == "groq":
+            data = generate_json(SYSTEM_PROMPT, {"tender_and_academy_profile": _build_prompt(t)})
+        else:
+            api_key = os.getenv("GEMINI_API_KEY")
+            if client is None:
+                if not api_key:
+                    return {**fallback, "eligibility_notes": "GEMINI_API_KEY not set."}
+                client = genai.Client(api_key=api_key, http_options=types.HttpOptions(
+                    timeout=int(os.getenv("RFP_GEMINI_TIMEOUT_MS", "60000"))))
 
-        resp = client.models.generate_content(
-            model=model or config.gemini_model(),
-            contents=_build_prompt(t),
-            config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT,
-                                               response_mime_type="application/json", temperature=0.2),
-        )
-        data = _parse_json(resp.text)
+            resp = client.models.generate_content(
+                model=model or config.gemini_model(),
+                contents=_build_prompt(t),
+                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT,
+                                                   response_mime_type="application/json", temperature=0.2),
+            )
+            data = _parse_json(resp.text)
         assessment = data.get("eligibility_assessment")
         if assessment not in {"likely_eligible", "unclear", "unlikely_eligible"}:
             assessment = "unclear"
         return {"summary": data.get("summary"), "eligibility_assessment": assessment,
                 "eligibility_notes": data.get("eligibility_notes")}
     except Exception as e:
-        print(f"[rfp_agent] Gemini error for '{t.title}': {type(e).__name__}")
+        print(f"[rfp_agent] AI provider error for '{t.title}': {type(e).__name__}")
         return fallback

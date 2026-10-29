@@ -1,6 +1,7 @@
 """Versioned layouts; an authenticated reviewer must approve their current hash."""
 import hashlib
 import json
+from .brand import STYLE_VERSION
 
 TEMPLATES = {
     "course_description": {
@@ -21,5 +22,19 @@ TEMPLATES = {
 }
 
 
+for _id, _name, _sections in [
+    ("curriculum", "Curriculum", ["Course purpose and outcomes", "Modules and training hours", "Practice, assessments and capstone"]),
+    ("facilitator_guide", "Facilitator guide", ["Instructor preparation", "Module facilitation plan", "Assessment and feedback guidance"]),
+    ("presentation_outline", "Presentation outline", ["Opening and learning objectives", "Module presentation outline", "Activities and assessment recap"]),
+    ("question_bank", "Question bank", ["Outcome mapping", "Questions and proposed answers", "Review guidance"]),
+    ("assessment_rubrics", "Assessment rubrics", ["Assessment objectives", "Criteria and performance levels", "Scoring and feedback"]),
+    ("capstone_brief", "Capstone project brief", ["Project objective and context", "Tasks and deliverables", "Evaluation criteria"]),
+    ("assessment_plan", "Learning outcomes and assessment plan", ["Learning outcomes", "Assessment mapping and weights", "Implementation and review"]),
+]:
+    TEMPLATES[_id] = {"name": _name, "version": 1, "sections": _sections,
+                      "requires_curriculum": True,
+                      "purpose": "Develop this material from the selected approved curriculum and published course facts. Label newly proposed teaching content and require staff review."}
+
+
 def template_hash(kind):
-    return hashlib.sha256(json.dumps(TEMPLATES[kind], sort_keys=True).encode()).hexdigest()
+    return hashlib.sha256(json.dumps({**TEMPLATES[kind], "visual_style": STYLE_VERSION}, sort_keys=True).encode()).hexdigest()

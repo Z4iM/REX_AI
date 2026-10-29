@@ -120,7 +120,7 @@ def test_render_failure_does_not_register_artifact(catalog_client, staff_headers
 def test_curriculum_dependency_is_explicit(catalog_client, staff_headers, published_course):
     response = catalog_client.post(BASE, headers=staff_headers, json={"document_type": "curriculum",
                                    "course_ids": ["PY-101"], "requester": "Staff"})
-    assert response.status_code == 409 and "Faris" in response.json()["detail"]
+    assert response.status_code == 409 and "approved curriculum" in response.json()["detail"]
 
 
 @pytest.mark.parametrize("body", [
@@ -157,7 +157,7 @@ def test_document_ui_generate_review_and_download(catalog_client, staff_headers,
     app.run()
     element(app.button, "Approve this template version").click().run()
     assert not app.exception
-    app.multiselect[0].select("PY-101")
+    element(app.get("button_group"), "Published courses").select("PY-101").run()
     element(app.button, "Generate document draft").click().run()
     assert not app.exception
     assert len(service.list_documents()) == 1
@@ -166,6 +166,9 @@ def test_document_ui_generate_review_and_download(catalog_client, staff_headers,
     element(app.button, "Save review decision").click().run()
     assert not app.exception
     assert service.list_documents()[0]["status"] == "approved"
+    element(app.button, "Prepare PDF").click().run()
+    assert not app.exception
+    assert any(b.label == "Download PDF" for b in app.get("download_button"))
 
 
 def test_approval_render_failure_preserves_pending_state(catalog_client, staff_headers, published_course, generator, monkeypatch):
@@ -178,3 +181,17 @@ def test_approval_render_failure_preserves_pending_state(catalog_client, staff_h
     assert response.status_code == 503
     assert service.get_document(artifact_id)["status"] == "pending_review"
     assert len(service.get_document(artifact_id)["history"]) == 1
+
+
+def test_manual_content_edits_preserve_original_and_require_review(catalog_client, staff_headers, published_course, generator, monkeypatch):
+    original = generate(catalog_client, staff_headers).json()
+    edited = {"title": "Edited Python course description", "sections": original["content"]["sections"]}
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Manual edits must not call an AI provider")
+    monkeypatch.setattr(service, "generate_json", forbidden)
+    r = generate(catalog_client, staff_headers, revision_of=original["artifact_id"],
+                 revision_instructions="Improve title", edited_content=edited)
+    assert r.status_code == 201, r.text
+    assert r.json()["version"] == 2 and r.json()["status"] == "pending_review"
+    assert r.json()["content"]["title"] == edited["title"]
+    assert service.get_document(original["artifact_id"])["content"]["title"] != edited["title"]

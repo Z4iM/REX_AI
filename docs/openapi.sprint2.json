@@ -1803,7 +1803,7 @@
     "/api/v1/demo/stage-courses": {
       "post": {
         "tags": [
-          "ta-demo"
+          "demo"
         ],
         "summary": "Stage Courses",
         "operationId": "stage_courses_api_v1_demo_stage_courses_post",
@@ -1860,7 +1860,7 @@
     "/api/v1/demo/stage-tenders": {
       "post": {
         "tags": [
-          "ta-demo"
+          "demo"
         ],
         "summary": "Stage Tenders",
         "operationId": "stage_tenders_api_v1_demo_stage_tenders_post",
@@ -1907,7 +1907,7 @@
     "/api/v1/demo/examples.zip": {
       "get": {
         "tags": [
-          "ta-demo"
+          "demo"
         ],
         "summary": "Examples Zip",
         "operationId": "examples_zip_api_v1_demo_examples_zip_get",

@@ -17,7 +17,7 @@ from backend.app.assistant.leads import LeadRequest, save_lead as persist_lead
 
 mcp = FastMCP("REX AI course and document tools", instructions=
               "Use published course data only. Draft documents require independent human approval. "
-              "Curriculum/RFP/Marketing integration is not provided by this server.")
+              "Staff can create curriculum and campaign drafts from approved sources. Human approval remains outside MCP.")
 
 
 def _staff():
@@ -62,13 +62,57 @@ def get_document_templates() -> list[dict]:
 
 
 @mcp.tool()
-def generate_document_draft(document_type: Literal["course_description", "course_proposal", "participant_guide"],
+def generate_document_draft(document_type: Literal["course_description", "course_proposal", "participant_guide", "curriculum", "facilitator_guide", "presentation_outline", "question_bank", "assessment_rubrics", "capstone_brief", "assessment_plan"],
                             course_ids: list[str], requester: str, language: Literal["en", "ar"] = "en",
-                            audience: str = "Prospective learners") -> dict:
+                            audience: str = "Prospective learners", curriculum_id: int | None = None) -> dict:
     """Staff-only real generation of a persisted draft; this tool cannot approve or publish it."""
     _staff()
     return documents.generate_document(GenerationRequest(document_type=document_type, course_ids=course_ids,
-                                        requester=requester, language=language, audience=audience))
+                                        requester=requester, language=language, audience=audience, curriculum_id=curriculum_id))
+
+
+@mcp.tool()
+def list_approved_curricula() -> list[dict]:
+    """Staff-only approved teaching plans; source revocation is checked."""
+    _staff()
+    from backend.app.agents.curriculum import service
+    result = []
+    for c in service.list_curricula(status="approved"):
+        service.validate_sources(c["source_records"])
+        result.append(c)
+    return result
+
+
+@mcp.tool()
+def generate_curriculum_draft(subject: str, course_ids: list[str], duration_hours: float = 20) -> dict:
+    """Staff-only proposed curriculum from published sources; cannot approve it."""
+    _staff()
+    from backend.app.agents.curriculum.router import CreateCurriculumRequest
+    from backend.app.agents.curriculum import service
+    body = CreateCurriculumRequest(subject=subject, course_ids=course_ids, duration_hours=duration_hours)
+    return service.create_curriculum(**body.model_dump())
+
+
+@mcp.tool()
+def generate_marketing_draft(course_id: str, curriculum_id: int, requester: str, audience: str,
+                             objective: str, language: Literal["en", "ar"] = "en") -> dict:
+    """Staff-only campaign draft from an approved curriculum; does not approve, send or publish."""
+    _staff()
+    from backend.app.marketing.models import CampaignRequest
+    from backend.app.marketing import service
+    return service.generate_campaign(CampaignRequest(course_id=course_id, curriculum_id=curriculum_id,
+        requester=requester, audience=audience, objective=objective, language=language,
+        channels=["social_caption", "facebook_instagram", "linkedin", "email", "whatsapp", "headline", "cta"]))
+
+
+@mcp.tool()
+def list_training_opportunities(country: Literal["EG", "SA"] = "EG") -> list[dict]:
+    """Staff-only country-filtered stored RFP opportunities; no external searches or messages."""
+    _staff()
+    from backend.app.integrations.rfp import session_factory
+    from backend.app.agents.rfp import db
+    with session_factory() as session:
+        return [db.to_dict(o) for o in db.search_opportunities(session, country=country, limit=50)]
 
 
 if __name__ == "__main__":

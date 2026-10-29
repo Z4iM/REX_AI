@@ -11,12 +11,14 @@ import os
 import re
 import shutil
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from typing import Annotated
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse
 
 from backend.app.ingestion.document_review import prepare_document_for_review
 from backend.app import runtime
@@ -54,10 +56,10 @@ def _load_manifest(upload_id: str) -> dict:
 
 
 def _summarize(record: dict) -> dict:
-    return {key: record[key] for key in (
+    return {**{key: record[key] for key in (
         "upload_id", "filename", "file_type", "source_sha256", "review_status",
         "approval_status", "chunk_count", "extraction_warnings", "missing_pages",
-    )}
+    )}, "uploaded_at": record.get("uploaded_at")}
 
 
 def _write_and_prepare(raw: bytes, name: str, suffix: str, enable_ocr: bool) -> tuple[dict, bool]:
@@ -85,6 +87,7 @@ def _write_and_prepare_locked(raw: bytes, name: str, suffix: str, enable_ocr: bo
         record = {
             "upload_id": digest,
             "filename": name,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "file_type": suffix.lstrip("."),
             "source_sha256": digest,
             "review_status": package["review_status"],
@@ -152,6 +155,20 @@ async def upload_course_document(
                     if record["review_status"] == "rejected" else
                     "Saved for staff review. Not indexed in RAG or published to the catalog."),
     }
+
+
+@router.get("/uploads/{upload_id}/original")
+def original_course_document(upload_id: str):
+    """Return the original bytes, never a converted or generated document."""
+    record = _load_manifest(upload_id)
+    suffix = "." + record["file_type"]
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(409, "Original file format is unavailable")
+    path = data_dir() / "uploads" / upload_id / ("source" + suffix)
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != record["source_sha256"]:
+        raise HTTPException(409, "Original file is missing or changed; ask the administrator to check it")
+    media = {".pdf": "application/pdf", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".md": "text/markdown"}
+    return FileResponse(path, media_type=media[suffix], filename=record["filename"])
 
 
 @router.get("/uploads")

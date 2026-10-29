@@ -37,18 +37,22 @@ def answer_approved_question(question: str):
         f"Source: {c['source_file']} | Section: {c['section']} | Text:\n{c['content']}"
         for sid, c in ids.items()
     )
-    key = os.getenv("GEMINI_API_KEY")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-    client = genai.Client(api_key=key, http_options=text_http_options())
-    response = client.models.generate_content(
-        model=os.getenv("GEMINI_TEXT_MODEL", "gemini-3.5-flash"),
-        contents=f"Student question:\n{question}\n\nApproved source excerpts:\n{context}",
-        config=text_config(SYSTEM),
-    )
-    if not response.text:
-        raise RuntimeError("Gemini returned an empty response")
-    obj = json.loads(response.text)
+    from backend.app.ai import provider, generate_json
+    if provider() == "groq":
+        obj = generate_json(SYSTEM, {"question": question, "approved_evidence": context})
+    else:
+        key = os.getenv("GEMINI_API_KEY")
+        if not key:
+            raise RuntimeError("GEMINI_API_KEY is not configured")
+        client = genai.Client(api_key=key, http_options=text_http_options())
+        response = client.models.generate_content(
+            model=os.getenv("GEMINI_TEXT_MODEL", "gemini-3.5-flash"),
+            contents=f"Student question:\n{question}\n\nApproved source excerpts:\n{context}",
+            config=text_config(SYSTEM),
+        )
+        if not response.text:
+            raise RuntimeError("Gemini returned an empty response")
+        obj = json.loads(response.text)
     answer, citations = obj.get("answer"), obj.get("source_ids")
     if not isinstance(answer, str) or not answer.strip() or not isinstance(citations, list):
         raise ValueError("Invalid grounded answer")

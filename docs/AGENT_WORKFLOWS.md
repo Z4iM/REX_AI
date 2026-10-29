@@ -1,25 +1,23 @@
-
 # REX AI — Agent Responsibilities & Workflows
 
-**Sprint 2 update (2026-10-26):** Current ownership is AbdulRahman for the Assistant/catalog/RAG and Document Generation, Faris for RFP and later Curriculum, and Ahmed for AI Marketing only. The Assistant and three course-based document types are implemented locally, including persistent qualification, consent-based lead capture, staff review/versioning and DOCX/PDF outputs. The sections below retain the original target workflows; consult `docs/SPRINT2_TA_WALKTHROUGH.md` for implemented capabilities and verification. Curriculum-based generation remains blocked on Faris's approved interface. Full team orchestration is not claimed by this branch.
+This document describes agent responsibilities and the original target workflows. Implementation status sections below reflect the current application. Workflow sequences mentioning LangGraph or MCP clients remain design targets: the working instructor planner calls allowlisted internal APIs and a separate stdio FastMCP server is available. See the [application overview](../README.md) and [current architecture](ARCHITECTURE.md) for configuration and verification.
 
 ## 1. Project Overview
 
 REX AI is a multi-agent system developed for Andalusia Academy.
 
-The system consists of five specialized AI agents coordinated through LangGraph.
+The system consists of five specialized AI agents connected through source-checked services and the instructor planner.
 
 ### Technology Stack
 
 - Frontend: Streamlit
 - Backend: FastAPI
-- LLM: Google Gemini API
-- Agent Orchestration: LangGraph
+- LLM: Groq by default; Google Gemini optional
+- Agent Orchestration: persisted instructor planner and allowlisted API tools
 - MCP Integration: FastMCP
-- Vector Database: ChromaDB
-- Embeddings: Gemini Embedding 2 (768 dimensions)
-- Relational Database: SQLite + SQLAlchemy + Alembic
-- Workflow Automation: n8n
+- Retrieval: SQLite FTS5 by default; optional ChromaDB/Gemini embeddings
+- Relational Database: SQLite and SQLAlchemy; Alembic remains planned
+- Workflow Automation: manual triggers; n8n remains optional deployment work
 - Document Storage: Local filesystem
 
 ### System Principles
@@ -96,16 +94,7 @@ Help potential students choose suitable training courses.
 
 ### Implementation Status
 
-Sprint 1 prototype implemented:
-- Basic RAG chatbot
-- Gemini integration
-- ChromaDB retrieval
-- Learner qualification
-- Budget and training-format matching
-- FastAPI endpoints
-- Streamlit interface
-
-Remaining enhancements are planned for Sprint 2.
+Implemented: approved-only catalog retrieval, conversational learner guidance, persistent qualification, deterministic course eligibility checks, cited recommendations and consented lead capture. Groq and Gemini are supported; SQLite retrieval is the default and Chroma remains optional. Real academy records require staff verification and publication.
 
 ---
 
@@ -180,7 +169,7 @@ Discover relevant educational tenders and RFP opportunities in Egypt and Saudi A
 
 ### Implementation Status
 
-Planned for Sprint 2.
+Implemented: RFP imports, configured source adapters, geography/deadline/relevance filtering, deduplication, AI summaries, workflow tracking and persisted dashboard alerts. Live portal access and optional provider search require operator configuration and verification.
 
 ---
 
@@ -251,7 +240,7 @@ Research, generate, and evaluate educational curricula.
 
 ### Implementation Status
 
-Planned for Sprint 2.
+Implemented: source-grounded curriculum drafts, research, teaching hours and assessment validation, verified-framework comparison, human review, revisions and PDF export. Alignment is proposed evidence and never official accreditation.
 
 ---
 
@@ -322,7 +311,7 @@ Generate professional educational documents using approved templates and course 
 
 ### Implementation Status
 
-Planned for Sprint 2.
+Implemented: ten template types, English/Arabic branded PDF and DOCX, approved-source citations, editable immutable revisions, review history and authenticated integrity-checked downloads.
 
 ---
 
@@ -388,7 +377,7 @@ Generate marketing content and campaign recommendations for academy courses.
 
 ### Implementation Status
 
-Planned for Sprint 2.
+Implemented: seven marketing channel types, multiple variations, approved-course and curriculum handoffs, editable persistent drafts, human review and approved-only exports. Distribution is manual.
 
 ---
 

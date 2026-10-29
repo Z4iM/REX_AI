@@ -1,4 +1,6 @@
 """Real isolated persistent Chroma/SQLite integration, with offline embeddings."""
+import pytest
+pytest.importorskip("chromadb", reason="Optional vector backend: install requirements-vector.txt to run this integration")
 from backend.app.catalog import approved_index, catalog_service as store
 from test_catalog_approval_publication import fake_embed
 

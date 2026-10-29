@@ -48,3 +48,23 @@ CLAUDE.md
 local-notes/
 LOCAL_NOTES.md
 docs/*_progress.md
+# Personal preparation materials belong outside the repository.
+personal/
+private-notes/
+ta-preparation/
+examples/ta_demo/
+docs/*TA_WALKTHROUGH*.md
+docs/FINAL_DEMO.md
+scripts/build_demo_examples.py
+# SQLite runtime sidecars and generated curriculum storage
+*.db-shm
+*.db-wal
+*.sqlite3-shm
+*.sqlite3-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db-journal
+*.sqlite3-journal
+*.sqlite-journal
+data/curriculum/

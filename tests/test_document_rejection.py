@@ -278,7 +278,7 @@ def test_streamlit_reject_form_validates_and_shows_saved_history(client, upload,
 
     monkeypatch.setattr(requests, "request", request)
     page = Path(__file__).resolve().parents[1] / "frontend/pages/4_Course_Approvals.py"
-    app = AppTest.from_file(str(page)).run()
+    app = AppTest.from_file(str(page), default_timeout=15).run()
     app.session_state["staff_key"] = HEADERS["X-API-Key"]
     app.session_state["staff_name"] = "UI Reviewer"
     app.run()

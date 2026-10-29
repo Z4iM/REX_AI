@@ -7,7 +7,7 @@ import streamlit as st
 API_URL = os.getenv("REX_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 from frontend.ui import header
-header("Ask REX", "Ask a course question below, or use the guided recommendation further down the page.")
+header("Ask REX", "Talk about your learning goals, explore a learning path, or ask about approved courses. Guided course recommendations are available below.")
 
 # ---------------------------------
 # Check FastAPI connection
@@ -36,12 +36,17 @@ except requests.exceptions.RequestException:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if not st.session_state.messages:
+    st.info("Start with a greeting or tell REX what you want to learn. Course details come from published, approved academy information.")
+
 
 # Display previous messages
 for message in st.session_state.messages:
 
-    with st.chat_message(message["role"]):
+    with st.chat_message(message["role"], avatar=":material/person:" if message["role"] == "user" else ":material/assistant:"):
         st.markdown(message["content"])
+        if message.get("mode") == "LEARNER_GUIDANCE":
+            st.caption("General learning guidance · Course facts require approved sources.")
 
         if message.get("sources"):
             with st.expander("View Sources"):
@@ -62,7 +67,8 @@ for message in st.session_state.messages:
 # User input
 # ---------------------------------
 prompt = st.chat_input(
-    "Ask REX AI about available courses..."
+    "Say hello, describe your goals, or ask about a course...",
+    max_chars=1000,
 )
 
 if prompt:
@@ -77,7 +83,10 @@ if prompt:
 
             response = requests.post(
                 f"{API_URL}/api/v1/chat",
-                json={"message": prompt},
+                json={"message": prompt, "history": [
+                    {"role": m["role"], "content": m["content"][:4000]}
+                    for m in st.session_state.messages[:-1][-12:]
+                ]},
                 timeout=180,
             )
 
@@ -88,6 +97,7 @@ if prompt:
             "role": "assistant",
             "content": result["answer"],
             "sources": result["sources"],
+            "mode": result.get("mode", "APPROVED_CATALOG"),
         })
 
     except requests.exceptions.RequestException:

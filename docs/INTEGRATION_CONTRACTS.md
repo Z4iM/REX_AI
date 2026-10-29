@@ -5,7 +5,9 @@
 **Version:** 1.0 — Sprint 1  
 **Team:** Faris Ahmed, AbdulRahman Adham, Ahmed AlAbiad
 
-**Sprint 2 implementation update (2026-10-26):** This document retains the Sprint 1 baseline and planned full-team contracts. The local AbdulRahman workstream now implements approved-only student course access, SQLite qualification sessions, consent-based leads, upload review/rejection/publication, metadata suggestions, and three reviewed/versioned document-generation types. The implemented API reference is `docs/openapi.sprint2.json`; see `docs/SPRINT2_TA_WALKTHROUGH.md` for current behavior and verification commands. Its scoped FastMCP adapter runs over local stdio; full LangGraph/team orchestration is still Sprint 3. Teammate-agent integration must be verified independently.
+This document retains the historical Sprint 1 integration contract baseline, including its original status labels and example payloads. It is not the current runtime contract. See the [application overview](../README.md), [current architecture](ARCHITECTURE.md), `docs/openapi.current.json`, and `/docs` on the running backend for implemented capabilities and current request schemas.
+
+Current differences: all five agent services and the separate FastMCP server are implemented; instructor orchestration uses a persisted allowlisted API planner rather than LangGraph. Qualification sessions persist in SQLite with a seven-day sliding expiry. Learner chat accepts up to twelve recent user/assistant turns. Staff routes require the configured administrator key; individual accounts/RBAC and public-deployment controls remain outside the current implementation. Sprint-specific OpenAPI files below are historical snapshots.
 
 ---
 

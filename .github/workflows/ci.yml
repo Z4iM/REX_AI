@@ -3,7 +3,7 @@ name: REX AI - Continuous Integration
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'dev/**']
 
   pull_request:
     branches: [main]
@@ -52,6 +52,9 @@ jobs:
       - name: Check Python syntax
         run: |
           python -m compileall -q backend frontend
+
+      - name: Audit default dependencies
+        run: python -m pip_audit --local
 
       - name: Run offline automated tests
         env:

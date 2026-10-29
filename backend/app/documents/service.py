@@ -4,9 +4,9 @@ import json
 import shutil
 from uuid import UUID, uuid4
 from fastapi import HTTPException
-from backend.app.ai import generate_json
+from backend.app.ai import generate_json, provider
 from backend.app.catalog import catalog_service as store
-from backend.app import runtime
+from backend.app import runtime, workflows
 from .models import GenerationRequest, ReviewRequest, GeneratedContent
 from .templates import TEMPLATES, template_hash
 from .rendering import render_document
@@ -65,6 +65,7 @@ def approve_template(template_id, reviewer):
 
 
 def _validate_sources(record):
+    workflows.validate_curriculum_snapshot(record)
     for source in record["sources"]:
         snapshot = source["course"]
         try:
@@ -78,11 +79,16 @@ def _validate_sources(record):
 
 
 def generate_document(payload: GenerationRequest):
-    if payload.document_type == "curriculum":
-        raise HTTPException(409, "Curriculum generation requires Faris's approved Curriculum Agent interface; not integrated")
+    if TEMPLATES[payload.document_type].get("requires_curriculum") and not payload.curriculum_id:
+        raise HTTPException(409, "Select an approved curriculum for this document type")
     template = next(t for t in list_templates() if t["template_id"] == payload.document_type)
     if not template["approved"]:
         raise HTTPException(409, "A staff reviewer must approve this template version before generation")
+    curriculum = None
+    if TEMPLATES[payload.document_type].get("requires_curriculum") and not payload.curriculum_id:
+        raise HTTPException(409, "Select an approved curriculum for this document type")
+    if payload.curriculum_id:
+        curriculum = workflows.approved_curriculum(payload.curriculum_id, payload.course_ids)
     sources = []
     for index, course_id in enumerate(payload.course_ids, 1):
         course = store.get_course(course_id, staff=True)
@@ -100,6 +106,8 @@ def generate_document(payload: GenerationRequest):
         if previous["document_type"] != payload.document_type:
             raise HTTPException(409, "A revision must use the same document type")
         revision_context = {"content": previous["content"], "review_history": previous["history"]}
+    if payload.edited_content and not payload.revision_of:
+        raise HTTPException(422, "Manual edits must create a revision of an existing document")
     system = (
         "You are the REX AI Educational Document Generation Agent. Create a professional, evidence-grounded "
         "document for the given audience/language using ONLY the supplied verified course fields. "
@@ -109,11 +117,14 @@ def generate_document(payload: GenerationRequest):
         "accreditation, content modules, exams, materials, prerequisites, customer needs or promises. "
         "Explicitly state missing information. Do not claim that learner suitability is verified. "
         "Arabic documents must have Arabic prose; preserve course names/codes and exact verified numerical facts. "
+        "If approved curriculum is supplied, use its modules, exercises and assessments. For teaching materials you may "
+        "propose questions, facilitation instructions, explanations and rubrics consistent with that curriculum; clearly label "
+        "these as proposed material. Do not invent additional academy facts. "
         "This is an AI DRAFT for staff review; no output is automatically approved."
     )
-    generated = generate_json(system, {"template": TEMPLATES[payload.document_type], "language": payload.language,
+    generated = payload.edited_content.model_dump() if payload.edited_content else generate_json(system, {"template": TEMPLATES[payload.document_type], "language": payload.language,
         "audience": payload.audience, "revision_instructions": payload.revision_instructions,
-        "previous_version": revision_context,
+        "previous_version": revision_context, "approved_curriculum": curriculum,
         "sources": [{"source_id": s["source_id"], "course": {k: v for k, v in s["course"].items()
             if k not in ("reviewer", "reviewed_at", "indexing_error")}} for s in sources]})
     try:
@@ -131,8 +142,10 @@ def generate_document(payload: GenerationRequest):
               "audience": payload.audience, "requester": payload.requester, "revision_of": payload.revision_of,
               "revision_instructions": payload.revision_instructions,
               "created_at": store._now(), "content": content, "sources": sources,
-              "generation_mode": "GEMINI_GROUNDED_DRAFT"}
+              "generation_mode": provider().upper() + "_GROUNDED_DRAFT"}
     record["data_origin"] = runtime.origin()
+    if curriculum:
+        record["curriculum"] = curriculum
     _validate_sources(record)
     directory = store.data_dir() / "generated" / artifact_id
     try:
@@ -175,10 +188,14 @@ def get_document(artifact_id):
 def list_documents():
     with store.catalog_transaction() as con:
         _schema(con)
-        return [{"artifact_id": row["artifact_id"], "family_id": row["family_id"], "version": row["version"],
-                 "status": row["status"], "created_at": row["created_at"],
-                 "title": json.loads(row["record_json"])["content"]["title"]}
-                for row in con.execute("SELECT * FROM generated_documents ORDER BY created_at DESC")]
+        items = []
+        for row in con.execute("SELECT * FROM generated_documents ORDER BY created_at DESC"):
+            record = json.loads(row["record_json"])
+            items.append({**{k: row[k] for k in ("artifact_id", "family_id", "version", "status", "created_at")},
+                "title": record["content"]["title"], "document_type": record["document_type"],
+                "language": record["language"], "source_files": [s["source_file"] for s in record["sources"]],
+                "course_titles": [s["course"]["title"] for s in record["sources"]]})
+        return items
 
 
 def review_document(artifact_id, payload: ReviewRequest):

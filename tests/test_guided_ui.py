@@ -1,6 +1,7 @@
 from pathlib import Path
 import requests
 from streamlit.testing.v1 import AppTest
+from test_demo_rfp_integration import example_pack
 
 
 def element(elements,label): return next(e for e in elements if e.label==label)
@@ -35,7 +36,7 @@ def test_demo_ui_single_sign_in_navigation_and_workflow(catalog_client,staff_hea
     assert not any(e.label=='Staff access key' for e in ui.text_input)
     uploads=catalog_client.get('/api/v1/catalog/uploads',headers=staff_headers).json()['items']
     primary=next(item['upload_id'] for item in uploads if item['filename']=='demo-py-101.md')
-    element(ui.selectbox,'Uploaded document').set_value(primary).run()
+    element(ui.button,'Open demo-py-101.md').click().run()
     assert element(ui.text_input,'Course ID (unique)').value=='DEMO-PY-101'
     element(ui.checkbox,'I verified these course details against the source document').check()
     element(ui.checkbox,'I checked every extraction warning against the original document').check()
@@ -45,7 +46,7 @@ def test_demo_ui_single_sign_in_navigation_and_workflow(catalog_client,staff_hea
     assert any(e.label=='Publish course' for e in ui.button)
     ui.switch_page('pages/2_RFP_Research.py').run()
     assert not ui.exception
-    assert len(ui.selectbox)>1
+    assert any(e.label=='Next action' for e in ui.radio)
     element(ui.button,'Save opportunity review').click().run()
     assert not ui.exception
     assert any('Opportunity review saved' in e.value for e in ui.success)

@@ -5,9 +5,10 @@ import sqlite3
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Literal
 from starlette.concurrency import run_in_threadpool
-from backend.app.catalog.approved_answer import answer_approved_question as answer_question
+from backend.app.assistant.learner_chat import answer_learner_question as answer_question
 from backend.app.assistant.course_matcher import match_courses
 from backend.app.catalog.upload_router import router as catalog_router
 from backend.app.assistant.personalized_recommendation import (
@@ -19,15 +20,18 @@ from backend.app.catalog.approval_router import (
 )
 from backend.app.documents.router import router as documents_router
 from backend.app.integrations.rfp import router as rfp_router, extra_router as rfp_extra_router
+from backend.app.agents.curriculum.router import build_router as curriculum_router
+from backend.app.marketing.router import router as marketing_router
 from backend.app import runtime
 from backend.app.integrations.demo import router as demo_router
+from backend.app.instructor.router import router as instructor_router
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="REX AI",
-    description="Sprint 2 — approved course assistant and staff document generation",
-    version="0.2.0"
+    description="Andalusia Academy — integrated academy agents and reviewed workflows",
+    version="0.3.0"
 )
 app.include_router(catalog_router)
 app.include_router(staff_router)
@@ -36,6 +40,9 @@ app.include_router(documents_router)
 app.include_router(rfp_router)
 app.include_router(rfp_extra_router)
 app.include_router(demo_router)
+app.include_router(curriculum_router())
+app.include_router(marketing_router)
+app.include_router(instructor_router)
 
 
 @app.get("/api/v1/system")
@@ -53,8 +60,15 @@ async def database_unavailable(request, exc):
 
 # Request model
 
+class ChatTurn(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    role: Literal['user', 'assistant']
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=1000)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=12)
 
     @field_validator("message")
     @classmethod
@@ -127,7 +141,7 @@ def health_check():
     return {
         "status": "ok",
         "service": "REX AI Backend",
-        "version": "0.2.0"
+        "version": app.version
     }
 
 
@@ -172,14 +186,16 @@ async def chat(request: ChatRequest):
         # worker thread to avoid blocking the API.
         result = await run_in_threadpool(
             answer_question,
-            request.message
+            request.message,
+            [turn.model_dump() for turn in request.history],
         )
 
         return ChatResponse(
             answer=result["answer"],
             sources=result["sources"],
-            mode="APPROVED_CATALOG",
-            disclaimer=(
+            mode=result.get("mode", "APPROVED_CATALOG"),
+            disclaimer=("General learning guidance; academy course details require published, approved evidence."
+                        if result.get("mode") == "LEARNER_GUIDANCE" else
                 "Answers use published, staff-reviewed course information. "
                 "Missing information requires confirmation from academy staff."
             )

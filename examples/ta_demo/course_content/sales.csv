@@ -1,6 +1,0 @@
-order_id,category,quantity,unit_price,data_origin
-D001,laptops,2,1500,REX_SYNTHETIC_DEMO
-D002,cables,3,100,REX_SYNTHETIC_DEMO
-D003,mice,1,250,REX_SYNTHETIC_DEMO
-D001,laptops,2,1500,REX_SYNTHETIC_DEMO
-D004,cables,,100,REX_SYNTHETIC_DEMO

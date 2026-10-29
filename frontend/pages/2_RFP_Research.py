@@ -1,12 +1,13 @@
 from backend.app.agents.rfp.sources import parse_upload, SourceError
 import streamlit as st
 from frontend.ui import api, header, require_staff, done, diagnostics
+from frontend.components import record_picker
 
-status = header("Training opportunities", "Faris's RFP agent · Find and review training opportunities in Egypt and Saudi Arabia.")
+status = header("Training opportunities", "Find and review training opportunities in Egypt and Saudi Arabia.")
 require_staff()
 tab_list, tab_import, tab_alerts = st.tabs(["Opportunities", "Add opportunities", "Alerts & activity"])
 with tab_list:
-    country = st.selectbox("Country", ["All", "Egypt", "Saudi Arabia"])
+    country = st.radio("Country", ["All", "Egypt", "Saudi Arabia"], horizontal=True)
     query = st.text_input("Search opportunities")
     params = {"q": query, "limit": 100}
     if country != "All":
@@ -14,8 +15,12 @@ with tab_list:
     result = api("GET", "/api/v1/rfp/opportunities", params=params)
     if result and not result["items"]:
         st.info("No opportunities yet. Import a file in Add opportunities, or use the demo examples.")
-    for item in (result or {}).get("items", []):
-        with st.expander(item["title"]):
+    opportunities=(result or {}).get("items", [])
+    selected=record_picker(opportunities,key="opportunity-selected",label="opportunities",searchable=False,
+        details=lambda r:r["issuer"]+" · "+r["country_code"]+" · Deadline: "+str(r.get("deadline") or "Check with issuer")) if opportunities else None
+    for item in [r for r in opportunities if r["id"]==selected]:
+        with st.container(border=True):
+            st.subheader(item["title"])
             st.write(f'{item["issuer"]} · {item["country_code"]} · Deadline: {item["deadline"] or "Needs verification"}')
             if item["data_mode"] == "synthetic_demo":
                 st.warning("Fictional example — not a live tender.")
@@ -31,7 +36,7 @@ with tab_list:
             st.caption("Changing status tracks your work. It does not submit an application.")
             if item.get("source_url") and item["data_mode"] != "synthetic_demo":
                 st.link_button("Open original source", item["source_url"])
-            new_status = st.selectbox("Next action", ["new", "reviewing", "applying", "submitted", "dismissed", "expired"],
+            new_status = st.radio("Next action", ["new", "reviewing", "applying", "submitted", "dismissed", "expired"], horizontal=True,
                                       index=["new", "reviewing", "applying", "submitted", "dismissed", "expired"].index(item["workflow_status"]), key=f'status_{item["id"]}')
             notes = st.text_area("Your review notes", value=item.get("reviewer_notes") or "", key=f'notes_{item["id"]}')
             if st.button("Save opportunity review", key=f'save_{item["id"]}'):
@@ -56,7 +61,7 @@ with tab_import:
         except (ValueError, TypeError, SourceError):
             st.error("Choose a valid JSON, CSV, or Excel file with 1 to 200 opportunities, under 10 MB. Use the examples folder as a reference.")
     with st.expander("Search configured sources online"):
-        st.write("This searches the sources configured by Faris. Results may need manual verification and API usage may incur costs.")
+        st.write("Results may need manual verification and API usage may incur costs.")
         if st.button("Run online source search", disabled=bool(status and status["mode"] == "demo")):
             with st.spinner("Checking configured sources..."):
                 report = api("POST", "/api/v1/rfp/run", json={"use_gemini": True, "notify": False})

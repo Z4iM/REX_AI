@@ -115,9 +115,28 @@ def parse_upload(filename: str, data: bytes) -> list[dict]:
         return list(csv.DictReader(io.StringIO(text)))
     if ext == ".xlsx":
         import openpyxl
-        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-        ws = wb.active
-        rows = list(ws.iter_rows(values_only=True))
+        from lxml.etree import XMLSyntaxError
+        from backend.app.ingestion.archive_safety import validate_office_archive
+        validate_office_archive(io.BytesIO(data))
+        wb = None
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+            ws = wb.active
+            if ws is None:
+                raise SourceError("Excel export must contain a worksheet")
+            if (ws.max_row or 0) > 10001 or (ws.max_column or 0) > 200:
+                raise SourceError("Excel export exceeds 10,000 rows or 200 columns")
+            # Bound even worksheets whose declared dimensions are missing or false.
+            rows = []
+            for row in ws.iter_rows(values_only=True, max_col=min(ws.max_column or 200, 200)):
+                if len(rows) >= 10001:
+                    raise SourceError("Excel export exceeds 10,000 rows")
+                rows.append(row)
+        except (KeyError, XMLSyntaxError, OSError):
+            raise SourceError("Excel export is incomplete or corrupt") from None
+        finally:
+            if wb is not None:
+                wb.close()
         if not rows:
             return []
         headers = [str(h).strip() if h is not None else "" for h in rows[0]]
@@ -314,6 +333,11 @@ def extract_tenders_from_text(text: str, source_url: Optional[str] = None, clien
                               model: Optional[str] = None) -> list[dict]:
     """Paste a tender page / PDF text -> structured raw records (then they go through the normal filters)."""
     from google.genai import types
+    from backend.app.ai import provider, generate_json
+    if client is None and provider() == "groq":
+        data = generate_json(EXTRACT_SYSTEM + " Return a JSON object with key items containing the extracted array.",
+                             {"source_url": source_url, "text": text[:30000]}).get("items", [])
+        return [d for d in data if isinstance(d, dict)] if isinstance(data, list) else []
     c = _client(client)
     prompt = f"Source URL (if known): {source_url or 'unknown'}\n\nTEXT:\n{text[:30000]}"
     resp = c.models.generate_content(
@@ -347,6 +371,14 @@ class GeminiSearchSource(BaseSource):
 
     def fetch(self) -> list[dict]:
         from google.genai import types
+        from backend.app.ai import provider, groq_completion, generate_json
+        if self._client_obj is None and provider() == "groq":
+            result = groq_completion("Use browser search to find currently open education and training RFPs in Egypt and Saudi Arabia only. Cite exact original source URLs. Do not invent missing facts.",
+                                     {"queries": self.queries, "today": date.today().isoformat()}, search=True)
+            data = generate_json(EXTRACT_SYSTEM + " Return JSON {items:[...]}. Extract only cited opportunities from this search evidence.",
+                                 {"search_evidence": result.get("content", "")}).get("items", [])
+            self.stats = [{"query": "Groq browser search", "records": len(data) if isinstance(data, list) else 0}]
+            return [d for d in data if isinstance(d, dict) and str(d.get("source_url") or "").startswith(("https://", "http://"))] if isinstance(data, list) else []
         c = _client(self._client_obj)
         today = date.today().isoformat()
         out: list[dict] = []
