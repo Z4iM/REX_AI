@@ -1,28 +1,56 @@
-from backend.app.agents.rfp.router import build_router
-from uuid import uuid4
-from backend.app.assistant.qualification import (
-    QualificationSession,
-    process_qualification,
-)
+from backend.app.assistant.session_store import advance_session, get_session, delete_session
+from backend.app.assistant.leads import LeadRequest, save_lead, delete_lead
 import logging
+import sqlite3
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
-from backend.app.assistant.grounded_answer import answer_question
+from backend.app.catalog.approved_answer import answer_approved_question as answer_question
 from backend.app.assistant.course_matcher import match_courses
+from backend.app.catalog.upload_router import router as catalog_router
 from backend.app.assistant.personalized_recommendation import (
     recommend_courses,
 )
+from backend.app.catalog.approval_router import (
+    staff_router,
+    public_router,
+)
+from backend.app.documents.router import router as documents_router
+from backend.app.integrations.rfp import router as rfp_router, extra_router as rfp_extra_router
+from backend.app import runtime
+from backend.app.integrations.demo import router as demo_router
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="REX AI",
-    description="Smart Academy Multi-Agent System - Sprint 1",
-    version="0.1.0"
+    description="Sprint 2 — approved course assistant and staff document generation",
+    version="0.2.0"
 )
+app.include_router(catalog_router)
+app.include_router(staff_router)
+app.include_router(public_router)
+app.include_router(documents_router)
+app.include_router(rfp_router)
+app.include_router(rfp_extra_router)
+app.include_router(demo_router)
 
-app.include_router(build_router())
+
+@app.get("/api/v1/system")
+def system_status():
+    return {"mode": "demo" if runtime.is_demo() else "academy", "data_origin": runtime.origin(),
+            "notice": "TA DEMO: all course and tender examples are fictional." if runtime.is_demo()
+            else "Academy mode: only reviewed, published course information is shown."}
+
+
+@app.exception_handler(SQLAlchemyError)
+@app.exception_handler(sqlite3.OperationalError)
+async def database_unavailable(request, exc):
+    return JSONResponse(status_code=503, content={"detail": "Application storage is temporarily unavailable; please retry"})
+
+
 # Request model
 
 class ChatRequest(BaseModel):
@@ -44,8 +72,6 @@ class ChatRequest(BaseModel):
             )
 
         return value
-# Sprint 1: In-memory conversation storage
-sessions: dict[str, QualificationSession] = {}
 
 
 class QualificationRequest(ChatRequest):
@@ -72,6 +98,9 @@ class SourceReference(BaseModel):
     section: str
     file: str
     excerpt: str
+    course_id: str | None = None
+    source_sha256: str | None = None
+    approval_revision: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -98,7 +127,7 @@ def health_check():
     return {
         "status": "ok",
         "service": "REX AI Backend",
-        "version": "0.1.0"
+        "version": "0.2.0"
     }
 
 
@@ -109,34 +138,7 @@ def health_check():
 )
 def qualification_chat(request: QualificationRequest):
 
-    # 1. Create or retrieve the conversation session.
-    if request.session_id is None:
-        session_id = str(uuid4())
-        session = QualificationSession()
-        sessions[session_id] = session
-
-    else:
-        session_id = request.session_id
-        session = sessions.get(session_id)
-
-        if session is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Conversation session not found"
-            )
-
-    # 2. Prevent processing a completed conversation.
-    if session.completed:
-        raise HTTPException(
-            status_code=409,
-            detail="Qualification already completed"
-        )
-
-    # 3. Process the student's message.
-    result = process_qualification(
-        session,
-        request.message
-    )
+    session_id, result = advance_session(request.session_id, request.message)
 
     # 4. Initialize variables for EVERY request.
     matches = None
@@ -161,48 +163,6 @@ def qualification_chat(request: QualificationRequest):
         matching_error=matching_error
     )
 
-def qualification_chat(request: QualificationRequest):
-
-    # First message: create a new conversation.
-    if request.session_id is None:
-        session_id = str(uuid4())
-        session = QualificationSession()
-
-        sessions[session_id] = session
-
-    else:
-        # Existing conversation: retrieve its state.
-        session_id = request.session_id
-
-        session = sessions.get(session_id)
-
-        if session is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Conversation session not found"
-            )
-
-    if session.completed:
-        raise HTTPException(
-            status_code=409,
-            detail="Qualification already completed"
-        )
-
-    # Process the message and update the session.
-    result = process_qualification(
-        session,
-        request.message
-    )
-
-    return QualificationResponse(
-        session_id=session_id,
-        status=result["status"],
-        reply=result["reply"],
-        profile=result["profile"],
-        query=result["query"],
-        course_matches=matches,
-        matching_error=matching_error,
-    )
 
 # REX Assistant endpoint
 @app.post("/api/v1/chat", response_model=ChatResponse)
@@ -218,10 +178,10 @@ async def chat(request: ChatRequest):
         return ChatResponse(
             answer=result["answer"],
             sources=result["sources"],
-            mode="SYNTHETIC_DEMO",
+            mode="APPROVED_CATALOG",
             disclaimer=(
-                "Synthetic demonstration data only. "
-                "Courses are not verified academy offerings."
+                "Answers use published, staff-reviewed course information. "
+                "Missing information requires confirmation from academy staff."
             )
         )
 
@@ -241,7 +201,7 @@ async def generate_personalized_recommendation(
     session_id: str
 ):
     # 1. Find the conversation.
-    session = sessions.get(session_id)
+    session = get_session(session_id)
 
     if session is None:
         raise HTTPException(
@@ -283,3 +243,20 @@ async def generate_personalized_recommendation(
         session_id=session_id,
         **result
     )
+
+
+@app.delete("/api/v1/qualification/{session_id}", status_code=204)
+def forget_qualification(session_id: str):
+    """The holder of a session token can delete their stored learner profile."""
+    delete_session(session_id)
+
+
+@app.post("/api/v1/qualification/{session_id}/lead", status_code=201)
+def capture_learner_lead(session_id: str, body: LeadRequest):
+    return save_lead(session_id, body)
+
+
+@app.delete("/api/v1/qualification/{session_id}/lead", status_code=204)
+def remove_learner_lead(session_id: str):
+    """The original private session token can revoke follow-up consent even after session expiry."""
+    delete_lead(session_id)

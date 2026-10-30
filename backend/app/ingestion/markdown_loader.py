@@ -39,7 +39,6 @@ def load_markdown(file_path):
     status = header_metadata.get("dataset_status", "unapproved")
 
     sections = []
-
     for part in parts[1:]:
         lines = part.splitlines()
 
@@ -62,6 +61,14 @@ def load_markdown(file_path):
             "content": "\n".join(content_lines).strip(),
             "metadata": extract_metadata(top_lines)
         })
+
+    # Introductory content can contain course fields and provenance notices.
+    # Dropping it silently loses review evidence (and synthetic-data labels).
+    preamble = parts[0].strip()
+    if preamble:
+        sections.append({"title": "Document", "content": preamble,
+                         "metadata": {**header_metadata, "section_kind": "document_preamble"}})
+
 
     return {
         "source_file": path.name,

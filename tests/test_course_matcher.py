@@ -17,6 +17,7 @@ from backend.app.assistant.course_matcher import (
 def sample_course():
     return {
         "course_id": "TEST-001",
+        "level": "Beginner",
         "title": "Python for Data Analytics",
         "training_format": "Online",
         "price": "3200 EGP",
@@ -261,7 +262,13 @@ def test_matching_is_deterministic(
 # Test 12: Real Synthetic Catalog
 # ------------------------------------------
 
-def test_complete_synthetic_catalog():
+def test_complete_synthetic_catalog(monkeypatch):
+    from backend.app.ingestion.markdown_loader import load_markdown
+    from backend.app.ingestion.course_normalizer import normalize_document
+    fixtures = []
+    for path in ("data/samples/course_catalog.md", "data/samples/alternative_catalog.md"):
+        fixtures.extend(normalize_document(load_markdown(path)))
+    monkeypatch.setattr("backend.app.assistant.course_matcher.load_catalog", lambda: fixtures)
     profile = {
         "background": "Computer Science graduate",
         "skill_level": "Beginner",
@@ -284,7 +291,7 @@ def test_complete_synthetic_catalog():
     assert by_id["CRS-002"]["status"] == "excluded"
     assert by_id["CRS-003"]["status"] == "excluded"
     assert by_id["AR-101"]["status"] == "needs_verification"
-    assert by_id["CL-202"]["status"] == "needs_verification"
+    assert by_id["CL-202"]["status"] == "excluded"
 
     assert sum(
         course["status"] == "eligible"

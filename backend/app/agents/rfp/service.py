@@ -297,9 +297,10 @@ def run_all(session: Session, sources: list[BaseSource], *, use_gemini: bool = T
         report.per_source.append(entry)
 
     report.expired_marked = mark_expired(session, today)
-    if notify and report.totals.new_opportunities:
+    if report.totals.new_opportunities:
         notifs = notifications.create_notifications(session, report.totals.new_opportunities)
         report.notifications_created = len(notifs)
-        report.email_sent = notifications.send_email_digest(session, notifs)
-        report.webhook_sent = notifications.post_webhook(notifs)
+        if notify:
+            report.email_sent = notifications.send_email_digest(session, notifs)
+            report.webhook_sent = notifications.post_webhook(notifs)
     return report

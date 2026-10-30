@@ -1,116 +1,26 @@
-
-import requests
+"""REX's single entry point with task-based navigation."""
+import sys
+from pathlib import Path
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from frontend.ui import api
 
-API_URL = "http://127.0.0.1:8000"
-
-st.set_page_config(
-    page_title="REX AI Assistant",
-    page_icon="🤖",
-    layout="wide",
-)
-
-st.title("🤖 REX AI")
-st.caption("Andalusia Academy — Smart AI Assistant")
-
-st.warning(
-    "SYNTHETIC DEMO: All course information is fictional "
-    "and used for development and testing."
-)
-
-
-# ---------------------------------
-# Check FastAPI connection
-# ---------------------------------
-try:
-    health = requests.get(
-        f"{API_URL}/health",
-        timeout=5
-    )
-
-    health.raise_for_status()
-
-    st.success("REX AI Backend Connected")
-
-except requests.exceptions.RequestException:
-    st.error(
-        "Cannot connect to FastAPI. "
-        "Make sure the backend is running."
-    )
-    st.stop()
-
-
-# ---------------------------------
-# Chat history
-# ---------------------------------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-
-# Display previous messages
-for message in st.session_state.messages:
-
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-        if message.get("sources"):
-            with st.expander("View Sources"):
-
-                for source in message["sources"]:
-                    st.write(
-                        f"[{source['source_id']}] "
-                        f"{source['course']}"
-                    )
-
-                    st.caption(
-                        f"Section: {source['section']} | "
-                        f"File: {source['file']}"
-                    )
-
-
-# ---------------------------------
-# User input
-# ---------------------------------
-prompt = st.chat_input(
-    "Ask REX AI about available courses..."
-)
-
-if prompt:
-
-    st.session_state.messages.append({
-        "role": "user",
-        "content": prompt,
-    })
-
-    try:
-        with st.spinner("REX AI is thinking..."):
-
-            response = requests.post(
-                f"{API_URL}/api/v1/chat",
-                json={"message": prompt},
-                timeout=120,
-            )
-
-            response.raise_for_status()
-            result = response.json()
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": result["answer"],
-            "sources": result["sources"],
-        })
-
-    except requests.exceptions.RequestException:
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": (
-                "Sorry, I couldn't process your request. "
-                "Please try again."
-            ),
-        })
-
-    st.rerun()
-from guided_recommendation import render_guided_recommendation
-
-render_guided_recommendation()
+st.set_page_config(page_title="REX AI", page_icon="🎓", layout="wide")
+with st.sidebar:
+    st.title("REX AI")
+    st.caption("Academy workspace")
+status = api("GET", "/api/v1/system", staff=False)
+pages = {
+    "Start": [st.Page("pages/0_Home.py", title="Home", icon="🏠", default=True)],
+    "For learners": [st.Page("pages/1_Course_Catalog.py", title="Browse courses", icon="📚"),
+                     st.Page("assistant_page.py", title="Ask REX", icon="💬")],
+    "For staff": [st.Page("pages/3_Course_Documents.py", title="1 · Add course documents", icon="📥"),
+                  st.Page("pages/4_Course_Approvals.py", title="2 · Review & publish", icon="✅"),
+                  st.Page("pages/5_Document_Generation.py", title="3 · Create documents", icon="📄"),
+                  st.Page("pages/2_RFP_Research.py", title="Training opportunities", icon="🔎"),
+                  st.Page("pages/6_Learner_Follow_Up.py", title="Learner follow-up", icon="📋")],
+}
+if status and status["mode"] == "demo":
+    pages["TA demonstration"] = [st.Page("pages/7_Demo_Setup.py", title="Demo setup", icon="▶️")]
+st.navigation(pages, expanded=True).run()

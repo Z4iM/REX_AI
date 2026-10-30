@@ -30,6 +30,8 @@ def normalize_document(document):
 
     for section in document["sections"]:
         original = section["metadata"]
+        if original.get("section_kind") == "document_preamble" and not original.get("course_id"):
+            continue
 
         course = {
             "title": section["title"],

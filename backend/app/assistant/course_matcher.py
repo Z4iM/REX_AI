@@ -1,24 +1,12 @@
 
 import re
 
-from backend.app.ingestion.markdown_loader import load_markdown
-from backend.app.ingestion.course_normalizer import normalize_document
-
-
-CATALOG_FILES = [
-    "data/samples/course_catalog.md",
-    "data/samples/alternative_catalog.md",
-]
+from backend.app.catalog.catalog_service import list_matching_courses
 
 
 def load_catalog():
-    courses = []
-
-    for file_path in CATALOG_FILES:
-        document = load_markdown(file_path)
-        courses.extend(normalize_document(document))
-
-    return courses
+    """The public matcher has no fallback to sample or unapproved data."""
+    return list_matching_courses()
 
 
 def parse_egp(value):
@@ -57,6 +45,34 @@ def normalize_format(value):
     }
 
     return aliases.get(text)
+
+LEVEL_RANK = {
+    "beginner": 1,
+    "intermediate": 2,
+    "advanced": 3,
+}
+
+
+def normalize_level(value):
+    """Normalize English and Arabic skill levels."""
+    if not value:
+        return None
+
+    aliases = {
+        "beginner": "beginner",
+        "مبتدئ": "beginner",
+        "مبتدئة": "beginner",
+
+        "intermediate": "intermediate",
+        "متوسط": "intermediate",
+        "متوسطة": "intermediate",
+
+        "advanced": "advanced",
+        "متقدم": "advanced",
+        "متقدمة": "advanced",
+    }
+
+    return aliases.get(str(value).strip().casefold())
 
 
 def evaluate_course(course, profile):
@@ -101,6 +117,31 @@ def evaluate_course(course, profile):
                 f"{price - budget:.0f} EGP"
             )
 
+    # Check learner level against course difficulty.
+    learner_level = normalize_level(
+        profile.get("skill_level")
+    )
+
+    course_level = normalize_level(
+        course.get("level")
+    )
+
+    if learner_level is None:
+        unknowns.append(
+            "Learner skill level is unknown"
+        )
+
+    elif course_level is None:
+        unknowns.append(
+            "Course skill level is unknown"
+        )
+
+    elif LEVEL_RANK[course_level] > LEVEL_RANK[learner_level]:
+        conflicts.append(
+            f"Course level ({course_level}) is above "
+            f"learner level ({learner_level})"
+        )
+
     if conflicts:
         status = "excluded"
     elif unknowns:
@@ -117,6 +158,9 @@ def evaluate_course(course, profile):
         "conflicts": conflicts,
         "unknowns": unknowns,
         "source_file": course["source_file"],
+        "level": course.get("level"),
+        "source_sha256": course.get("source_sha256"),
+        "approval_revision": course.get("approval_revision"),
     }
 
 
@@ -129,46 +173,3 @@ def match_courses(profile):
         evaluate_course(course, profile)
         for course in courses
     ]
-
-
-if __name__ == "__main__":
-    profile = {
-        "background": (
-            "Computer Science graduate with basic Python"
-        ),
-        "skill_level": "Beginner",
-        "career_goal": "Becoming a Data Scientist",
-        "training_format": "Hybrid",
-        "budget": "4000 EGP",
-        "availability": "10 hours",
-    }
-
-    results = match_courses(profile)
-
-    for course in results:
-        print("\nCourse:", course["title"])
-        print("Status:", course["status"])
-        print("Conflicts:", course["conflicts"])
-        print("Unknowns:", course["unknowns"])
-
-    eligible = [
-        course for course in results
-        if course["status"] == "eligible"
-    ]
-
-    assert len(results) == 5
-    assert len(eligible) == 0
-
-    ml_course = next(
-        course for course in results
-        if course["course_id"] == "CRS-002"
-    )
-
-    assert ml_course["status"] == "excluded"
-    assert any(
-        "1500 EGP" in reason
-        for reason in ml_course["conflicts"]
-    )
-
-    print("\nCourse matching test PASSED!")
-    print("Confirmed eligible courses:", len(eligible))

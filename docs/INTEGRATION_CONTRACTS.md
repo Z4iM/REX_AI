@@ -5,6 +5,8 @@
 **Version:** 1.0 — Sprint 1  
 **Team:** Faris Ahmed, AbdulRahman Adham, Ahmed AlAbiad
 
+**Sprint 2 implementation update (2026-10-26):** This document retains the Sprint 1 baseline and planned full-team contracts. The local AbdulRahman workstream now implements approved-only student course access, SQLite qualification sessions, consent-based leads, upload review/rejection/publication, metadata suggestions, and three reviewed/versioned document-generation types. The implemented API reference is `docs/openapi.sprint2.json`; see `docs/SPRINT2_TA_WALKTHROUGH.md` for current behavior and verification commands. Its scoped FastMCP adapter runs over local stdio; full LangGraph/team orchestration is still Sprint 3. Teammate-agent integration must be verified independently.
+
 ---
 
 ## 1. Purpose

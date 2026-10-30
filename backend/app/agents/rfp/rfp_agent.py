@@ -329,6 +329,7 @@ def _parse_json(text: str) -> dict:
 
 def summarize_tender(t: Tender, client=None, model: Optional[str] = None) -> dict:
     """Call Gemini (with a request timeout). On any failure return a safe fallback - never crash the pipeline."""
+    from . import config
     fallback = {"summary": None, "eligibility_assessment": "unclear",
                 "eligibility_notes": "Summary unavailable (Gemini call failed)."}
     try:
@@ -343,7 +344,7 @@ def summarize_tender(t: Tender, client=None, model: Optional[str] = None) -> dic
                 timeout=int(os.getenv("RFP_GEMINI_TIMEOUT_MS", "60000"))))
 
         resp = client.models.generate_content(
-            model=model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            model=model or config.gemini_model(),
             contents=_build_prompt(t),
             config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT,
                                                response_mime_type="application/json", temperature=0.2),

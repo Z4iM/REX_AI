@@ -24,7 +24,7 @@ from . import sources as sources_mod
 class RunRequest(BaseModel):
     sources: Optional[list[str]] = None     # names from sources.yaml; None = all enabled
     use_gemini: bool = True
-    notify: bool = True
+    notify: bool = False
 
 
 class UpdateRequest(BaseModel):
@@ -53,6 +53,9 @@ def build_router(session_factory=None, sources_loader: Optional[Callable] = None
 
     @router.post("/run")
     def run(req: RunRequest, session=Depends(get_session)):
+        from backend.app import runtime
+        if runtime.is_demo():
+            raise HTTPException(409, "Use the fictional tender examples in Demo setup; online searches run in academy mode")
         srcs = load(only=req.sources) if req.sources else load()
         rep = service.run_all(session, srcs, use_gemini=req.use_gemini, notify=req.notify)
         t = rep.totals

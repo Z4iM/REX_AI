@@ -14,11 +14,13 @@ BASE_DIR = Path(__file__).parent  # package resources: sources.yaml, sample_tend
 
 def data_dir() -> Path:
     """Runtime data (SQLite file, imports/ drop folder). Override with RFP_DATA_DIR."""
-    return Path(os.getenv("RFP_DATA_DIR", str(BASE_DIR.parent / "rfp_data")))
+    from backend.app.runtime import rfp_dir
+    return rfp_dir()
 
 
 def database_url() -> str:
-    return os.getenv("RFP_DATABASE_URL", f"sqlite:///{data_dir() / 'rfp.db'}")
+    from backend.app.runtime import is_demo
+    return (None if is_demo() else os.getenv("RFP_DATABASE_URL")) or f"sqlite:///{data_dir() / 'rfp.db'}"
 
 
 def gemini_api_key() -> str | None:
@@ -26,7 +28,7 @@ def gemini_api_key() -> str | None:
 
 
 def gemini_model() -> str:
-    return os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    return os.getenv("RFP_GEMINI_MODEL") or os.getenv("GEMINI_MODEL") or os.getenv("GEMINI_TEXT_MODEL", "gemini-3.5-flash")
 
 
 def gemini_timeout_ms() -> int:
@@ -51,6 +53,9 @@ def user_agent() -> str:
 
 
 def smtp_settings() -> dict | None:
+    from backend.app.runtime import is_demo
+    if is_demo():
+        return None
     host = os.getenv("SMTP_HOST")
     recipients = [e.strip() for e in os.getenv("ALERT_EMAILS", "").split(",") if e.strip()]
     if not host or not recipients:
@@ -64,4 +69,7 @@ def smtp_settings() -> dict | None:
 
 
 def n8n_webhook_url() -> str | None:
+    from backend.app.runtime import is_demo
+    if is_demo():
+        return None
     return os.getenv("N8N_WEBHOOK_URL") or None
