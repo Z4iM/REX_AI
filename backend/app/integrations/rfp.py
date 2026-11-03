@@ -32,7 +32,7 @@ class ImportRequest(BaseModel):
 def import_opportunities(body: ImportRequest):
     if not runtime.is_demo() and any("REX_SYNTHETIC_DEMO" in str(item) or item.get("data_mode") == "synthetic_demo"
                                      for item in body.items):
-        raise HTTPException(409, "Import TA fixtures in Demo mode, not the academy database")
+        raise HTTPException(409, "Import synthetic fixtures in Demo mode, not the academy database")
     with session_factory() as session:
         result = service.ingest_raw(session, body.items, "staff_file_import", use_gemini=body.use_gemini,
                                    data_mode="synthetic_demo" if runtime.is_demo() else "imported")

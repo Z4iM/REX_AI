@@ -17,7 +17,7 @@ All team members collaborate across the entire project.
 
 Primary responsibility identifies the person coordinating a work package, not exclusive ownership of its implementation.
 
-Current assignments were clarified by AbdulRahman on October 26, 2026: AbdulRahman owns the Assistant, catalog/RAG, and Document Generation; Faris owns the completed RFP Agent and the later Curriculum Agent; Ahmed owns only AI Marketing. Earlier Sprint 1 entries below are historical. Faris's RFP completion is user-reported on his branch; integration into this checkout has not been verified.
+Current assignments were clarified by AbdulRahman on October 26, 2026: AbdulRahman owns the Assistant, catalog/RAG, and Document Generation; Faris owns the completed RFP Agent and the later Curriculum Agent; Ahmed owns only AI Marketing. Earlier Sprint 1 entries below are historical. As of October 29, Faris's RFP and Curriculum source are integrated locally, with source-checked handoffs to Documents and Marketing. The current README records the implemented scope; GitHub contribution and final team review requirements remain separate.
 
 Actual implementation and individual contributions are tracked through GitHub commits, pull requests, and completed tasks.
 
@@ -48,8 +48,8 @@ October 19–27, 2026
 | 2.2 | Knowledge base retrieval and RAG | AbdulRahman |
 | 2.3 | RFP Research Agent | Faris |
 | 2.4 | RFP filtering, validation, and alerts | Faris |
-| 2.5 | Curriculum Research Agent | Faris (later work) |
-| 2.6 | Accreditation gap analysis | Unassigned; scope/ownership to confirm |
+| 2.5 | Curriculum Research Agent | Faris |
+| 2.6 | Accreditation gap analysis | Faris (Curriculum workstream) |
 | 2.7 | Document Generation Agent | AbdulRahman |
 | 2.8 | Marketing Agent | Ahmed (only assigned agent) |
 | 2.9 | Shared orchestration and interfaces | All |

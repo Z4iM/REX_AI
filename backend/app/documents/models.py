@@ -1,10 +1,13 @@
+from __future__ import annotations
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class GenerationRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    document_type: Literal["course_description", "course_proposal", "participant_guide", "curriculum"]
+    document_type: Literal["course_description", "course_proposal", "participant_guide", "curriculum", "facilitator_guide", "presentation_outline", "question_bank", "assessment_rubrics", "capstone_brief", "assessment_plan"]
+    edited_content: GeneratedContent | None = None
+    curriculum_id: int | None = Field(default=None, ge=1)
     course_ids: list[str] = Field(min_length=1, max_length=5)
     language: Literal["en", "ar"] = "en"
     audience: str = Field(default="Prospective learners", min_length=2, max_length=240)

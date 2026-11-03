@@ -24,7 +24,21 @@ def test_staff_tools_fail_closed(staff_headers, monkeypatch):
         server.get_document_templates()
     assert exc.value.status_code == 401
     monkeypatch.setenv("REX_MCP_STAFF_KEY", staff_headers["X-API-Key"])
-    assert len(server.get_document_templates()) == 3
+    assert {t["template_id"] for t in server.get_document_templates()} == {
+        "course_description", "course_proposal", "participant_guide", "curriculum", "facilitator_guide",
+        "presentation_outline", "question_bank", "assessment_rubrics", "capstone_brief", "assessment_plan"}
+
+
+def test_new_agent_tools_require_staff(staff_headers, monkeypatch):
+    monkeypatch.delenv("REX_MCP_STAFF_KEY", raising=False)
+    for action in (server.list_approved_curricula, server.list_training_opportunities,
+                   lambda: server.generate_curriculum_draft("Python", ["PY-101"]),
+                   lambda: server.generate_marketing_draft("PY-101", 1, "Author", "Learners", "Enquiries")):
+        with pytest.raises(HTTPException) as exc:
+            action()
+        assert exc.value.status_code == 401
+    monkeypatch.setenv("REX_MCP_STAFF_KEY", staff_headers["X-API-Key"])
+    assert server.list_training_opportunities() == []
 
 
 def test_mcp_stdio_protocol_and_tool_schemas():
@@ -38,7 +52,9 @@ def test_mcp_stdio_protocol_and_tool_schemas():
                 result = await session.list_tools()
                 names = {tool.name for tool in result.tools}
                 assert names == {"search_courses", "get_course_details", "retrieve_course_documents",
-                                 "get_document_templates", "generate_document_draft", "save_lead"}
+                                 "get_document_templates", "generate_document_draft", "save_lead",
+                             "list_approved_curricula", "generate_curriculum_draft",
+                             "generate_marketing_draft", "list_training_opportunities"}
                 assert not (await session.call_tool("search_courses", {"query": "Python"})).isError
                 assert (await session.call_tool("retrieve_course_documents", {"query": "Python", "limit": 999})).isError
     asyncio.run(run())

@@ -1,4 +1,4 @@
-"""Start an isolated TA backend and UI. Ctrl+C stops only the processes this script starts."""
+"""Start an isolated sample backend and UI. Ctrl+C stops only the processes this script starts."""
 import os
 import socket
 import subprocess
@@ -41,7 +41,7 @@ def main():
             raise RuntimeError('Backend startup timed out. Check data/demo/logs/backend.log locally.')
         frontlog=(logdir/'frontend.log').open('a',encoding='utf-8');handles.append(frontlog)
         children.append(subprocess.Popen([sys.executable,'-m','streamlit','run','frontend/app.py','--server.address','127.0.0.1','--server.port','8510','--server.headless','true','--browser.gatherUsageStats','false','--client.toolbarMode','minimal'],cwd=ROOT,env=env,stdout=frontlog,stderr=subprocess.STDOUT,creationflags=flags))
-        print('TA demo: http://127.0.0.1:8510')
+        print('Demo: http://127.0.0.1:8510')
         print('API documentation: http://127.0.0.1:8010/docs')
         print('Open Demo setup in the sidebar. Sign in with your name and the existing staff key from .env.')
         print('Fictional records are kept in data/demo. Your academy records are separate.')

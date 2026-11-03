@@ -1,4 +1,16 @@
-# REX AI — System Architecture (Sprint 1)
+# REX AI — System Architecture
+
+## Current implementation
+
+The application runs five agent workflows through FastAPI and Streamlit. Groq is the default text provider; Gemini remains optional. SQLite stores reviewed course metadata, learner sessions and consented leads, documents, campaigns, curriculum records, RFP opportunities and instructor actions. Approved-only SQLite FTS5 retrieval is the default; Gemini embeddings with Chroma remain available.
+
+The instructor planner uses 44 allowlisted internal API tools with persisted proposals, explicit confirmation, review snapshots and deterministic service validation. A separate stdio FastMCP server exposes ten controlled tools. The instructor does not use an MCP client or LangGraph. Source publication, template approval and downstream human review are enforced by the domain services.
+
+Shared staff-key authentication is intended for controlled local operation. Individual accounts/RBAC, public-route rate limiting, managed deployment, Alembic migrations and scheduled n8n workflows are not implemented. Existing RFP SMTP/webhook integrations require deliberate configuration; normal UI actions do not distribute content.
+
+The sections and diagrams below preserve the original Sprint 1 design proposal. Technologies and controls described there are targets unless confirmed in this current implementation section or the [README](../README.md).
+
+## Historical Sprint 1 design proposal
 
 **Project:** REX AI — Smart Academy Multi-Agent System  
 **Organization:** Andalusia Academy  

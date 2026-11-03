@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from backend.app.catalog.upload_router import require_catalog_admin
-from . import approved_index, catalog_service as store
+from . import approved_index, course_covers, catalog_service as store
 from .metadata_extraction import ExtractionRequest, extract_metadata
 
 staff_router = APIRouter(prefix="/api/v1/catalog", tags=["catalog-approval"],
@@ -71,8 +72,10 @@ def get_staff_history(course_id: str):
 
 
 @staff_router.post("/staff/courses/{course_id}/publish")
-async def publish_document(course_id: str):
-    return await run_in_threadpool(approved_index.publish_course, course_id.upper())
+async def publish_document(course_id: str, background_tasks: BackgroundTasks):
+    result = await run_in_threadpool(approved_index.publish_course, course_id.upper())
+    background_tasks.add_task(course_covers.generate_cover, course_id.upper())
+    return result
 
 
 @staff_router.post("/staff/courses/{course_id}/withdraw")
@@ -90,10 +93,19 @@ async def refresh_course_index(course_id: str):
 
 @public_router.get("/courses")
 def list_published_courses():
-    items = store.list_courses()
+    items = [course_covers.with_cover(course) for course in store.list_courses()]
     return {"count": len(items), "items": items}
 
 
 @public_router.get("/courses/{course_id}")
 def get_published_course(course_id: str):
-    return store.get_course(course_id)
+    return course_covers.with_cover(store.get_course(course_id))
+
+
+@public_router.get("/courses/{course_id}/cover/{cover_revision}")
+def get_course_cover(course_id: str, cover_revision: str):
+    course = store.get_course(course_id)
+    path = course_covers.image_path(course)
+    if cover_revision != course_covers.revision(course) or not path.is_file():
+        raise HTTPException(404, "Course cover not found")
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "no-store"})

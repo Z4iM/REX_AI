@@ -1,9 +1,12 @@
 
 from pathlib import Path
+import zipfile
 
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
+from lxml.etree import XMLSyntaxError
+from backend.app.ingestion.archive_safety import validate_office_archive
 
 
 def load_docx(file_path):
@@ -24,7 +27,11 @@ def load_docx(file_path):
             f"DOCX file not found: {path}"
         )
 
-    document = Document(path)
+    validate_office_archive(path)
+    try:
+        document = Document(path)
+    except (KeyError, zipfile.BadZipFile, XMLSyntaxError) as exc:
+        raise ValueError("DOCX package is incomplete or corrupt") from exc
 
     sections = []
     current_title = "Document Content"

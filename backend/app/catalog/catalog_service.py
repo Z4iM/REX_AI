@@ -100,6 +100,7 @@ class CourseApproval(BaseModel):
     instructor_name: str | None = Field(default=None, max_length=120)
     instructor_bio: str | None = Field(default=None, max_length=2000)
     schedule: str | None = Field(default=None, max_length=1000)
+    location: str | None = Field(default=None, max_length=160)
     offers: str | None = Field(default=None, max_length=1000)
     target_audience: str | None = Field(default=None, max_length=2000)
     career_opportunities: list[str] = Field(default_factory=list, max_length=30)

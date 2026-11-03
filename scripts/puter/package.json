@@ -1,0 +1,14 @@
+{
+  "name": "rex-course-covers",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@heyputer/puter.js": "2.6.5"
+  },
+  "overrides": {
+    "postal-mime": "4.2.0"
+  }
+}

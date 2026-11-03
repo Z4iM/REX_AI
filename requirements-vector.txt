@@ -1,0 +1,3 @@
+# Optional legacy Gemini/Chroma retrieval. See docs/SECURITY.md before installing.
+-r requirements.txt
+chromadb==1.5.9
