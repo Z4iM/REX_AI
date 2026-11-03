@@ -13,6 +13,7 @@ def _isolate_env(monkeypatch, tmp_path):
     monkeypatch.setenv("REX_AI_PROVIDER", "gemini")
     monkeypatch.setenv("REX_RETRIEVAL_BACKEND", "gemini")
     monkeypatch.setenv("REX_APP_MODE", "academy")
+    monkeypatch.setenv("LANGSEARCH_API_KEY", "")
     monkeypatch.setenv("REX_CATALOG_DATA_DIR", str(tmp_path / "catalog"))
     monkeypatch.setenv("REX_CURRICULUM_DIR", str(tmp_path / "curriculum"))
     for k in ("GROQ_API_KEY", "GEMINI_API_KEY", "RFP_API_KEY", "RFP_DASHBOARD_PASSWORD", "RFP_REQUIRE_LOGIN", "SMTP_HOST",

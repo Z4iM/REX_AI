@@ -283,6 +283,8 @@ def run_all(session: Session, sources: list[BaseSource], *, use_gemini: bool = T
             run.status = "ok"
             _merge(report.totals, r)
             entry.update(fetched=r.fetched, new=r.new, rejected=r.rejected, updated=r.updated)
+            if stats := getattr(src, "search_stats", None):
+                entry.update(stats)
         except SourceSkipped as e:
             run.status, run.error = "skipped", str(e)
             entry.update(status="skipped", error=str(e))

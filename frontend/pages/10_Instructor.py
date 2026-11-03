@@ -2,7 +2,7 @@
 from uuid import uuid4
 import streamlit as st
 from frontend.ui import api, header, require_staff
-from frontend.components import record_picker, date_label, readable
+from frontend.components import date_label, readable
 
 header('Instructor workspace', 'Describe your goal. REX coordinates the academy agents and shows proposed changes before running them.')
 reviewer = require_staff()
@@ -55,10 +55,18 @@ with right:
 if not items:
     st.info('Start a conversation to create a campaign, design a curriculum, prepare documents or manage training opportunities.')
     st.stop()
-selected=record_picker([{**s,"title":s.get("title") or "Conversation · "+date_label(s["created_at"])} for s in items],
-    key="instructor_session",label="conversations",statuses=False)
-if selected is None:
-    st.stop()
+conversations = {item["id"]: item for item in items}
+if st.session_state.get("instructor_session") not in conversations:
+    st.session_state["instructor_session"] = next(iter(conversations))
+
+def conversation_label(session_id):
+    item = conversations[session_id]
+    title = item.get("title") or "New conversation"
+    return f'{title} · {date_label(item["created_at"])}'
+
+with left:
+    selected = st.selectbox("Conversation", list(conversations), format_func=conversation_label,
+                            key="instructor_session")
 base = '/api/v1/instructor/sessions/' + selected
 session = api('GET', base)
 if not session:

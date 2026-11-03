@@ -39,7 +39,9 @@ REX_CATALOG_ADMIN_KEY=your_strong_local_staff_key
 
 Groq free-tier requests have account quotas and can become temporarily unavailable. SQLite FTS5 provides local, persistent keyword retrieval over approved course facts; it needs no embedding API, model download or hosted vector service. Common Arabic/English query terms are supported. It is lexical retrieval, rather than semantic vector search. Gemini text generation and Gemini/Chroma retrieval remain available through configuration.
 
-Provider browser search is separately priced and remains disabled by default. RFP imports, configured public feeds and country filtering work independently of paid search. OpenCode's free client does not make every hosted model or external-client API request free. See [provider setup](docs/PROVIDER_SETUP.md).
+RFP web discovery combines LangSearch MCP (when `LANGSEARCH_API_KEY` is configured) with public tender directories for Egypt and Saudi Arabia. Discovery results require staff verification. File imports work without search credentials.
+
+Course covers are optional. With `PUTER_AUTH_TOKEN` and the Node.js worker installed, publishing a new course queues one background cover attempt per approved revision. Existing covers are served from local storage even without a token. See [provider setup](docs/PROVIDER_SETUP.md) for both integrations.
 
 ## Five connected agents
 

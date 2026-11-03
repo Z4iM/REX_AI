@@ -3,6 +3,9 @@ import streamlit as st
 from frontend.ui import api, header, require_staff, done, diagnostics
 from frontend.components import record_picker, task_view
 
+# Source IDs accepted by the RFP API; the page can reload independently of backend modules.
+RFP_WEB_SOURCES = ("langsearch_web_discovery", "egypt_training_listings", "saudi_etimad_listings")
+
 status = header("Training opportunities", "Find and review training opportunities in Egypt and Saudi Arabia.")
 require_staff()
 view = task_view("opportunity_view", ["Browse opportunities", "Add opportunities", "Alerts and activity"])
@@ -60,14 +63,41 @@ if view == "Add opportunities":
                 diagnostics(report, "Import results")
         except (ValueError, TypeError, SourceError):
             st.error("Choose a valid JSON, CSV, or Excel file with 1 to 200 opportunities and a size of 10 MiB or less.")
-    with st.expander("Search configured sources online"):
-        st.write("Results may need manual verification and API usage may incur costs.")
+    with st.expander("Search public tenders"):
+        st.write("Checks LangSearch and public tender directories for Egypt and Saudi Arabia. Verify the original notice before acting.")
         if st.button("Run online source search", disabled=bool(status and status["mode"] == "demo")):
+            st.session_state.pop("langsearch_report", None)
             with st.spinner("Checking configured sources..."):
-                report = api("POST", "/api/v1/rfp/run", json={"use_gemini": True, "notify": False})
+                report = api("POST", "/api/v1/rfp/run", json={"sources": list(RFP_WEB_SOURCES), "use_gemini": False, "notify": False})
             if report:
-                st.success(f'{report["new_count"]} new opportunities found.')
-                diagnostics(report, "Source search report")
+                st.session_state["langsearch_report"] = report
+        if report := st.session_state.get("langsearch_report"):
+            sources = report["sources"]
+            for source in sources:
+                name = source["source"].replace("_", " ").capitalize()
+                if source["status"] != "ok":
+                    st.warning(f'{name}: {source.get("error") or "Search did not run."}')
+                elif "queries_attempted" in source:
+                    completed, attempted = source["queries_completed"], source["queries_attempted"]
+                    st.caption(f'LangSearch: {completed} of {attempted} searches completed · {source["indexed_results"]} indexed results')
+                    if completed < attempted:
+                        st.warning("Some LangSearch queries did not complete.")
+                else:
+                    st.caption(f'{name}: {source.get("fetched", 0)} notices checked')
+            checked = sum(source.get("fetched", 0) for source in sources)
+            saved, rejected = report["new_count"], report["rejected"]
+            st.write(f"**{checked} notices checked · {saved} newly saved · {rejected} rejected**")
+            if saved:
+                st.success("New opportunities are ready for staff review in Browse opportunities.")
+                if st.button("Browse saved opportunities"):
+                    st.session_state["opportunity_view"] = "Browse opportunities"
+                    st.rerun()
+            elif any(source["status"] == "ok" for source in sources):
+                st.info("No new opportunities saved. Matching notices may already be saved or may have closed.")
+            if rejected and st.button("See why notices were rejected"):
+                st.session_state["opportunity_view"] = "Alerts and activity"
+                st.rerun()
+            diagnostics(report, "Technical search report")
 if view == "Alerts and activity":
     result = api("GET", "/api/v1/rfp/notifications")
     if result is not None and not result["items"]:

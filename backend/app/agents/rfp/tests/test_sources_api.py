@@ -189,3 +189,98 @@ def test_run_list_get_patch_and_notifications(client):
     assert client.get("/api/v1/rfp/notifications", headers=H).json()["count"] > 0
     # second run: nothing new
     assert client.post("/api/v1/rfp/run", headers=H, json={"use_gemini": False}).json()["new_count"] == 0
+
+
+def test_langsearch_runs_existing_filters_and_keeps_results_unverified(session, monkeypatch):
+    from .. import db, service
+
+    def page(id, country, deadline):
+        return {
+            "url": f"https://www.ungm.org/Public/Notice/{id}",
+            "datePublished": "2099-12-01",
+            "text": (
+                "Professional staff training\n\nTest issuer\n\nProfessional staff training Request for proposal"
+                f"\nReference: TEST-{id}\nBeneficiary countries or territories: {country}"
+                f"\nPublished on: 01-Oct-2026\nDeadline on: {deadline} 14:00"
+                "\nDescription\nDeliver software training and professional development for staff."
+            ),
+        }
+
+    egypt = page(1, "Egypt", "20-Nov-2026")
+    async def search(self, key):
+        return [egypt, egypt, page(2, "Saudi Arabia", "20-Nov-2026"),
+                page(3, "Egypt", "20-Oct-2026"), page(4, "Germany", "20-Nov-2026"),
+                {**egypt, "url": "https://ungm.org.example.invalid/Public/Notice/5"}]
+
+    monkeypatch.setenv("LANGSEARCH_API_KEY", "isolated-test-key")
+    monkeypatch.setattr(sources.LangSearchSource, "_search", search)
+    source = sources.load_sources(only=[sources.LANGSEARCH_SOURCE])[0]
+    result = service.run_all(session, [source], today=date(2026, 11, 3), use_gemini=False, notify=False)
+    assert result.totals.fetched == 4
+    assert result.totals.new == 2
+    assert result.totals.rejected == 2
+    rows = db.search_opportunities(session, include_expired=True)
+    assert {row.country_code for row in rows} == {"EG", "SA"}
+    assert all(row.filter_status == "needs_review" for row in rows)
+    assert all(row.publication_date == date(2026, 10, 1) for row in rows)
+
+
+def test_langsearch_skips_without_key_and_sanitizes_transport_error(monkeypatch):
+    source = sources.LangSearchSource("test")
+    monkeypatch.delenv("LANGSEARCH_API_KEY", raising=False)
+    with pytest.raises(sources.SourceSkipped, match="LANGSEARCH_API_KEY"):
+        source.fetch()
+    monkeypatch.setenv("LANGSEARCH_API_KEY", "isolated-test-key")
+
+    async def fail(key):
+        raise RuntimeError(key)
+
+    monkeypatch.setattr(source, "_search", fail)
+    with pytest.raises(SourceError, match="LangSearch web search failed") as error:
+        source.fetch()
+    assert "isolated-test-key" not in str(error.value)
+
+
+def test_etimad_uses_offer_deadline_and_execution_country():
+    result = {
+        "url": "https://tenders.etimad.sa/Tender/OpenTenderDetailsReportForVisitor?tenderIdString=sample",
+        "text": (
+            "الجهة الحكومية | Test agency\nالمعلومات الأساسية | إسم المنافسة: Professional training"
+            "\nرقم المنافسة: 26/59\nالغاية من المنافسة | Training for staff"
+            "\nاخر موعد لإستلام استفسارات الموردين | التاريخ: 15/05/1448\nالموافق: 26/10/2026"
+            "\nاخر موعد لإستلام العروض | التاريخ: 16/05/1448\nالموافق: 20/11/2026"
+            "\nمكان التنفيذ | داخل المملكة"
+        ),
+    }
+    parsed = sources._other_public_notice(result)
+    assert parsed["country"] == "Saudi Arabia"
+    assert parsed["deadline"] == date(2026, 11, 20)
+    assert parsed["tender_id"] == "26/59"
+    assert sources._other_public_notice({**result, "text": result["text"].replace("داخل المملكة", "خارج المملكة")}) is None
+    assert sources._other_public_notice({**result, "url": result["url"].replace("etimad.sa", "etimad.sa.example.invalid")}) is None
+    assert sources._other_public_notice({**result, "text": result["text"].replace("20/11/2026", "")}) is None
+
+
+def test_public_training_directories_discover_open_leads(session, monkeypatch):
+    from .. import service
+    egypt = """<div itemtype="http://schema.org/Event">
+    <p itemprop="description">Staff training in digital skills</p><p itemprop="location">Egypt</p>
+    <p itemprop="endDate">18 Nov 2026</p><a itemprop="url" href="https://www.globaltenders.com/tender-detail/test">Open</a></div>"""
+    saudi = """<table><tr><td class="t-title"><span>Training for employees</span><small>Ref. 261139000552</small></td>
+    <td class="t-entity">Public agency</td><td class="t-close"><time datetime="2026-11-07T06:59:00.000Z"></time></td>
+    <td class="t-link"><a href="https://tenders.etimad.sa/Tender/DetailsForVisitor?STenderId=example%3D">Notice</a></td></tr></table>"""
+    egypt += egypt.replace("Staff training in digital skills", "Supply of training uniforms").replace("/test", "/supplies")
+    bodies = dict(zip(sources.PUBLIC_RFP_LISTINGS.values(), (egypt, saudi)))
+    monkeypatch.setattr(sources, "polite_get", lambda url: SimpleNamespace(content=bodies[url].encode()))
+    result = service.run_all(session, sources.load_sources(only=list(sources.PUBLIC_RFP_LISTINGS)),
+                             today=date(2026, 11, 3), use_gemini=False, notify=False)
+    assert result.totals.new == 2, result.per_source
+    assert {r.country_code for r in result.totals.new_opportunities} == {"EG", "SA"}
+    assert all(r.filter_status == "needs_review" for r in result.totals.new_opportunities)
+
+
+def test_ungm_implementing_partner_notice_is_readable():
+    page = {"url": "https://www.ungm.org/Public/Notice/123",
+            "text": "Vocational training\nILO\nVocational training Call for implementing partners\nReference: 123"
+                    "\nBeneficiary countries or territories: Egypt\nDeadline on: 15-Nov-2026 16:00\nDescription\nTraining"}
+    assert sources._ungm_notice(page)["deadline"] == date(2026, 11, 15)

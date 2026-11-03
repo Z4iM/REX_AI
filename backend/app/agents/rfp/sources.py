@@ -13,7 +13,9 @@ untrusted data.
 """
 from __future__ import annotations
 
+import asyncio
 import csv
+import os
 import io
 import json
 import re
@@ -22,7 +24,7 @@ import urllib.robotparser
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse
 
 import requests
 import yaml
@@ -425,10 +427,250 @@ class GeminiSearchSource(BaseSource):
         return out
 
 
+# --------------------------------------------------------------------------- LangSearch discovery
+
+LANGSEARCH_URL = "https://mcp.langsearch.com/mcp"
+LANGSEARCH_SOURCE = "langsearch_web_discovery"
+
+
+def _ungm_notice(result: dict) -> dict | None:
+    """Extract explicit UNGM notice fields; search index metadata is not tender evidence."""
+    url = result.get("url")
+    body = result.get("text")
+    if not isinstance(url, str) or not isinstance(body, str):
+        return None
+    match = re.fullmatch(r"https://(?:www\.)?ungm\.org/Public/Notice/(\d+)/?(?:[?#].*)?", url, re.I)
+    if not match:
+        return None
+    body = body[:6000]
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if len(lines) < 3 or not re.search(r"request for (?:proposal|quotation)|invitation to bid|call for individual consultants|call for implementing partners|grant support.call for proposal", lines[2], re.I):
+        return None
+
+    def field(label):
+        m = re.search(r"^" + re.escape(label) + r":[ \t]*([^\r\n]+)", body, re.I | re.M)
+        return m.group(1).strip() if m else None
+
+    reference = field("Reference")
+    country = field("Beneficiary countries or territories")
+    if not reference or not country:
+        return None
+
+    def notice_date(label):
+        value = field(label) or ""
+        m = re.match(r"\d{1,2}-[A-Za-z]{3}-\d{4}\b", value)
+        return parse_date(m.group()) if m else None
+
+    return {
+        "title": lines[0][:500], "issuer": lines[1][:200], "tender_id": reference[:250],
+        "country": country, "publication_date": notice_date("Published on"),
+        "deadline": notice_date("Deadline on"),
+        "description": re.split(r"^Description[ \t]*$", body, maxsplit=1, flags=re.I | re.M)[-1].strip()[:3000],
+        "source_url": f"https://www.ungm.org/Public/Notice/{match.group(1)}",
+    }
+
+
+def _other_public_notice(result: dict) -> dict | None:
+    """Read explicit tender fields from indexed public procurement pages."""
+    url, body = result.get("url"), result.get("text")
+    if not isinstance(url, str) or not isinstance(body, str):
+        return None
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None
+    if parsed.scheme != "https" or parsed.username or parsed.password:
+        return None
+    host = parsed.hostname
+    if host not in {"tenders.etimad.sa", "procurement-notices.undp.org",
+                    "etenders.gov.eg", "www.etenders.gov.eg", "gcsbudgeting.digitalegypt.gov.eg",
+                    "www.gcsbudgeting.digitalegypt.gov.eg"}:
+        return None
+    body = body[:8000].translate(str.maketrans("٠١٢٣٤٥٦٧٨٩أإآ", "0123456789ااا")).replace("\u200f", "").replace("\u200e", "")
+
+    def field(labels):
+        match = re.search(r"(?:^|[\n|])[ \t]*(?:" + labels + r")[ \t]*[:|][ \t]*([^\n|]+)", body, re.I)
+        return match.group(1).strip() if match else None
+
+    def explicit_date(value):
+        match = re.search(r"\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|\d{1,2}[- ](?:[A-Za-z]{3,9})[- ]\d{4})\b", value or "")
+        return parse_date(match.group()) if match else None
+
+    if host == "tenders.etimad.sa":
+        if parsed.path.casefold() != "/tender/opentenderdetailsreportforvisitor" or not parse_qs(parsed.query).get("tenderIdString"):
+            return None
+        if field("مكان التنفيذ") != "داخل المملكة":
+            return None
+        title = re.search(r"اسم المنافسة[ \t]*:[ \t]*([^\n|]+)", body)
+        title = title.group(1).strip() if title else None
+        issuer = field("الجهة الحكومية")
+        reference = field("رقم المنافسة|الرقم المرجعي")
+        # Only the Gregorian date in the offer submission block, never the inquiry or award date.
+        deadline_block = re.search(r"(?:اخر موعد لاستلام العروض|اخر موعد لتقديم العروض)[^\n]*\n[ \t]*الموافق[ \t]*:[ \t]*([^\n|]+)", body)
+        deadline = explicit_date(deadline_block.group(1) if deadline_block else field("اخر موعد لتقديم العروض"))
+        country = "Saudi Arabia"
+        description = field("الغاية من المنافسة")
+    else:
+        if host == "procurement-notices.undp.org" and parsed.path.casefold() not in {"/view_negotiation.cfm", "/view_notice.cfm"}:
+            return None
+        reference = field("reference(?: number)?|negotiation reference|tender (?:id|number)|رقم المناقصة|رقم العملية")
+        title = field("title|tender title|negotiation title|اسم المناقصة|موضوع العملية")
+        issuer = field("issuer|issuing organization|agency|الجهة الحكومية|الجهة الادارية")
+        if host == "procurement-notices.undp.org" and reference:
+            title = title or result.get("title")
+            issuer = issuer or "UNDP"
+        country = field("beneficiary countr(?:y|ies)(?: or territories)?|country|الدولة|بلد التنفيذ")
+        deadline = explicit_date(field("deadline(?: on)?|submission deadline|closing date|اخر موعد لتقديم العروض|تاريخ الاغلاق"))
+        description = field("description|scope|وصف العملية")
+    if not (isinstance(title, str) and title and issuer and reference and country and deadline):
+        return None
+    return {"title": title[:500], "issuer": issuer[:200], "tender_id": reference[:250],
+            "country": country, "deadline": deadline,
+            "publication_date": explicit_date(field("published on|publication date|تاريخ النشر")),
+            "description": (description or title)[:3000], "source_url": parsed._replace(fragment="").geturl()}
+
+
+PUBLIC_RFP_LISTINGS = {
+    "egypt_training_listings": "https://www.globaltenders.com/online-egypt-education-training-tenders",
+    "saudi_etimad_listings": "https://gcctenderalerts.com/tenders/saudi-etimad",
+}
+
+
+class PublicTrainingListingsSource(BaseSource):
+    """Supplement the search index with two public, unverified directories."""
+    data_mode = "search_discovered"
+
+    def fetch(self):
+        from bs4 import BeautifulSoup
+        from .rfp_agent import RELEVANT_KEYWORDS
+
+        if self.name not in PUBLIC_RFP_LISTINGS:
+            raise SourceError("Unknown public tender directory.")
+        response = polite_get(PUBLIC_RFP_LISTINGS[self.name])
+        soup = BeautifulSoup(response.content, "html.parser", from_encoding="utf-8")
+        saudi = self.name == "saudi_etimad_listings"
+        cards = soup.select("tr:has(td.t-title)" if saudi else '[itemtype="http://schema.org/Event"]')
+        if not cards:
+            raise SourceError("Public tender directory returned no readable listing rows.")
+        records = []
+        for card in cards:
+            def value(selector, attribute=None):
+                el = card.select_one(selector)
+                return (el.get(attribute) or "") if el and attribute else (el.get_text(" ", strip=True) if el else "")
+
+            if saudi:
+                title = value("td.t-title span")
+                url = value("td.t-link a", "href")
+                if not re.fullmatch(r"https://tenders\.etimad\.sa/Tender/DetailsForVisitor\?STenderId=[A-Za-z0-9%_+/-]+(?:=+)?", url):
+                    continue
+                deadline = parse_date(value("td.t-close time", "datetime"))
+                reference = re.search(r"\b\d{8,20}\b", value("td.t-title small"))
+                record = {"title": title, "country": "Saudi Arabia", "issuer": value("td.t-entity"),
+                          "deadline": deadline, "tender_id": reference.group() if reference else None,
+                          "source_url": url}
+            else:
+                title = value('[itemprop="description"]')
+                url = value('a[itemprop="url"]', "href")
+                if value('[itemprop="location"]') != "Egypt" or not re.fullmatch(
+                        r"https://www\.globaltenders\.com/tender-detail/[A-Za-z0-9_-]+", url):
+                    continue
+                deadline = parse_date(value('[itemprop="endDate"]'))
+                record = {"title": title, "country": "Egypt", "deadline": deadline, "source_url": url,
+                          "publication_date": parse_date(value('[itemprop="startDate"]'))}
+            normalized_title = title.casefold().translate(str.maketrans("أإآ", "ااا"))
+            # Directory categories often include supplies and facilities that only mention training.
+            if re.match(r"^(?:supply of|renting|lease of|توريد|تامين|اصلاح وصيانة)\b", normalized_title):
+                continue
+            if deadline and any(word in title.casefold() for word in RELEVANT_KEYWORDS):
+                record["description"] = "Public directory lead. Verify the original tender and eligibility before acting."
+                records.append(record)
+            if len(records) >= 50:
+                break
+        return records
+
+
+class LangSearchSource(BaseSource):
+    """Discover publicly indexed procurement notices in both supported markets."""
+    data_mode = "search_discovered"
+    queries = (
+        "site:ungm.org/Public/Notice Egypt training capacity building request for proposal deadline",
+        "site:ungm.org/Public/Notice Saudi Arabia training capacity building request for proposal deadline",
+        "site:ungm.org/Public/Notice Egypt Saudi Arabia vocational skills training implementing partners healthcare training workshops deadline",
+        "site:tenders.etimad.sa/Tender تدريب دورات تطوير مهارات منافسة آخر موعد لاستلام العروض",
+        "site:tenders.etimad.sa/Tender التدريب التأهيل بناء القدرات التعليم التحول الرقمي منافسة",
+        "site:etenders.gov.eg مصر مناقصة تدريب دورات بناء القدرات تقديم العروض",
+        "site:gcsbudgeting.digitalegypt.gov.eg مناقصة تدريب تأهيل مصر",
+        "site:procurement-notices.undp.org Egypt Saudi Arabia training capacity building procurement deadline",
+        "Egypt open tender request for proposals training services staff capacity building bidding deadline UNGM",
+        "Saudi Arabia open procurement tender training services professional development submission deadline Etimad",
+        "مناقصات مفتوحة مصر خدمات التدريب والتاهيل اخر موعد تقديم العروض",
+        "منافسات نشطة اعتماد السعودية خدمات تدريب الموظفين دورات آخر موعد لتقديم العروض",
+    )
+
+    def __init__(self, name: str, **kw):
+        super().__init__(name, **kw)
+        # Never infer a beneficiary country from the search query or source configuration.
+        self.default_country = None
+        self.search_stats = {}
+
+    async def _search(self, key):
+        import httpx
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        pages = []
+        async with asyncio.timeout(85):
+            async with httpx.AsyncClient(headers={"Authorization": "Bearer " + key}, timeout=25) as client:
+                async with streamable_http_client(LANGSEARCH_URL, http_client=client) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        semaphore = asyncio.Semaphore(4)
+
+                        async def search(query):
+                            async with semaphore, asyncio.timeout(24):
+                                ungm = query.startswith("site:ungm.org/")
+                                limit = 20 if ungm else 25
+                                result = await session.call_tool("web_search", {
+                                    "query": f"{query} {date.today().year}", "count": limit,
+                                    "contents": {"text": {"max_characters": 5000 if ungm else 6500}},
+                                })
+                                payload = result.structuredContent
+                                if result.isError or not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
+                                    raise SourceError("LangSearch rejected a query.")
+                                return payload["results"][:limit]
+
+                        responses = await asyncio.gather(*(search(q) for q in self.queries), return_exceptions=True)
+                        successful = [response for response in responses if isinstance(response, list)]
+                        if not successful:
+                            raise SourceError("LangSearch could not complete any queries.")
+                        for response in successful:
+                            pages.extend(response)
+        self.search_stats = {"queries_completed": len(successful), "queries_attempted": len(self.queries),
+                             "indexed_results": len(pages)}
+        return pages
+
+    def fetch(self):
+        key = os.getenv("LANGSEARCH_API_KEY", "").strip()
+        if not key:
+            raise SourceSkipped("Set LANGSEARCH_API_KEY in the backend environment to enable RFP web search.")
+        try:
+            pages = asyncio.run(self._search(key))
+        except Exception:
+            # Transport errors can contain provider details; do not persist credentials or response bodies.
+            raise SourceError("LangSearch web search failed. Check the key, quota and connection, then retry.") from None
+        notices = {}
+        for page in pages:
+            notice = (_ungm_notice(page) or _other_public_notice(page)) if isinstance(page, dict) else None
+            if notice:
+                notices.setdefault(notice["source_url"], notice)
+        return list(notices.values())
+
+
 # --------------------------------------------------------------------------- config loader
 
 TYPE_MAP = {"file": FileSource, "folder": FolderSource, "rss": RSSSource, "html": HTMLListSource,
-            "gemini_search": GeminiSearchSource}
+            "gemini_search": GeminiSearchSource, "langsearch": LangSearchSource,
+            "public_training_listings": PublicTrainingListingsSource}
 
 
 def load_sources(path: Optional[str | Path] = None, only: Optional[list[str]] = None,

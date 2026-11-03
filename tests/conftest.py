@@ -6,6 +6,8 @@ import pytest
 @pytest.fixture(autouse=True)
 def isolated_application_data(tmp_path, monkeypatch):
     monkeypatch.setenv("REX_APP_MODE", "academy")
+    monkeypatch.setenv("LANGSEARCH_API_KEY", "")
+    monkeypatch.setenv("PUTER_AUTH_TOKEN", "")
     monkeypatch.setenv("REX_AI_PROVIDER", "gemini")
     # Empty values also prevent load_dotenv() in lazily imported modules from
     # restoring real local credentials. Live tests explicitly opt in themselves.

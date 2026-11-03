@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from backend.app import ai
 
 
-@pytest.mark.parametrize("status", [401, 403, 429, 500])
+@pytest.mark.parametrize("status", [400, 401, 403, 429, 500])
 def test_provider_errors_are_sanitized(monkeypatch, status):
     import requests
     monkeypatch.setenv("REX_AI_PROVIDER", "groq"); monkeypatch.setenv("GROQ_API_KEY", "private-test-key")
@@ -23,11 +23,12 @@ def test_groq_structured_generation(monkeypatch):
     def request(*a, **kw):
         assert kw["json"]["response_format"] == {"type": "json_object"}
         assert "tools" not in kw["json"]
+        assert "valid JSON object" in kw["json"]["messages"][0]["content"]
         response = requests.Response(); response.status_code = 200
         response._content = json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": '{"answer":"Grounded answer"}'}}]}).encode()
         return response
     monkeypatch.setattr(requests, "post", request)
-    assert ai.generate_json("Return JSON", {}) == {"answer": "Grounded answer"}
+    assert ai.generate_json("Extract the fields", {}) == {"answer": "Grounded answer"}
 
 
 def test_web_search_never_implicitly_enabled(monkeypatch):

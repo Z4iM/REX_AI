@@ -54,7 +54,7 @@ def task_view(key, options, label="What would you like to do?"):
     return st.radio(label, options, key=widget, horizontal=True, on_change=remember)
 
 
-def record_picker(records, *, key, id_field='id', title_field='title', label='records', details=None, statuses=True, searchable=True):
+def record_picker(records, *, key, id_field='id', title_field='title', label='records', details=None, statuses=True, searchable=True, render_card=None):
     """Keep original IDs intact; filter and page visible cards without deleting data."""
     records = list(records)
     if any(r.get('created_at') or r.get('uploaded_at') for r in records):
@@ -80,7 +80,7 @@ def record_picker(records, *, key, id_field='id', title_field='title', label='re
     if st.session_state.get(key) not in ids:
         st.session_state[key] = ids[0]
     selected = st.session_state[key]
-    if len(shown) == 1:
+    if len(shown) == 1 and render_card is None:
         st.caption('The matching record is open below.')
         return selected
     filter_key = (query, chosen, tuple(ids))
@@ -89,24 +89,30 @@ def record_picker(records, *, key, id_field='id', title_field='title', label='re
         st.session_state[key+'-page'] = ids.index(selected)//6
     index = min(st.session_state.get(key+'-page',0), (len(shown)-1)//6)
     page = shown[index*6:(index+1)*6]
-    for start in range(0,len(page),2):
-        cols = st.columns(2)
-        for col, r in zip(cols,page[start:start+2]):
+    columns_per_row = 3 if render_card else 2
+    for start in range(0, len(page), columns_per_row):
+        cols = st.columns(columns_per_row)
+        for col, r in zip(cols, page[start:start + columns_per_row]):
             rid = r[id_field]
-            with col, st.container(border=True):
-                st.markdown('**' + str(r.get(title_field) or rid) + '**')
-                if r.get(state_field):
-                    badge(r[state_field])
-                if details:
-                    st.caption(details(r))
+            with col, st.container(border=render_card is None):
+                if render_card:
+                    render_card(r)
                 else:
-                    bits = []
-                    if r.get('file_type'): bits.append(str(r['file_type']).upper()+' original')
-                    if r.get('version'): bits.append('Version '+str(r['version']))
-                    if r.get('language'): bits.append({'en':'English','ar':'Arabic'}.get(r['language'],r['language']))
-                    if r.get('source_files'): bits.append('Source: '+', '.join(r['source_files']))
-                    if r.get('created_at') or r.get('uploaded_at'): bits.append(date_label(r.get('created_at') or r.get('uploaded_at')))
-                    st.caption(' · '.join(bits))
+                    st.markdown('**' + str(r.get(title_field) or rid) + '**')
+                    if r.get(state_field):
+                        badge(r[state_field])
+                    if details:
+                        st.caption(details(r))
+                    else:
+                        bits = []
+                        if r.get('file_type'): bits.append(str(r['file_type']).upper()+' original')
+                        if r.get('version'): bits.append('Version '+str(r['version']))
+                        if r.get('language'): bits.append({'en':'English','ar':'Arabic'}.get(r['language'],r['language']))
+                        if r.get('source_files'): bits.append('Source: '+', '.join(r['source_files']))
+                        if r.get('created_at') or r.get('uploaded_at'): bits.append(date_label(r.get('created_at') or r.get('uploaded_at')))
+                        st.caption(' · '.join(bits))
+                if render_card and rid == selected:
+                    continue
                 if st.button(('Viewing ' if rid == selected else 'Open ') + str(r.get(title_field) or rid),
                              key=key+'-open-'+str(rid), disabled=rid == selected, width='stretch'):
                     st.session_state[key] = rid

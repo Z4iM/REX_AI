@@ -900,6 +900,55 @@
         }
       }
     },
+    "/api/v1/catalog/courses/{course_id}/cover/{cover_revision}": {
+      "get": {
+        "tags": [
+          "course-catalog"
+        ],
+        "summary": "Get Course Cover",
+        "operationId": "get_course_cover_api_v1_catalog_courses__course_id__cover__cover_revision__get",
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          },
+          {
+            "name": "cover_revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cover Revision"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/templates": {
       "get": {
         "tags": [
@@ -4386,6 +4435,18 @@
               }
             ],
             "title": "Schedule"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "offers": {
             "anyOf": [

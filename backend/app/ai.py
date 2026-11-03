@@ -78,6 +78,7 @@ def groq_completion(system, payload, *, search=False):
         body["tools"] = [{"type": "browser_search"}]
         body["tool_choice"] = "required"
     else:
+        body["messages"][0]["content"] += "\nReturn only a valid JSON object."
         body["response_format"] = {"type": "json_object"}
     try:
         response = requests.post("https://api.groq.com/openai/v1/chat/completions",
@@ -88,6 +89,8 @@ def groq_completion(system, payload, *, search=False):
             raise HTTPException(503, "Groq rejected the API key or model access. Check the key and model permissions locally.")
         if response.status_code == 413:
             raise HTTPException(503, "The provider request exceeds the account's request size limit. Reduce the requested context or use a model with a larger allowance.")
+        if response.status_code == 400:
+            raise HTTPException(503, "Groq rejected the AI request (HTTP 400). Check the configured model and request settings.")
         response.raise_for_status()
         choice = response.json()["choices"][0]
         if choice.get("finish_reason") == "length":

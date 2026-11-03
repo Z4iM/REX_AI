@@ -95,7 +95,7 @@ if view == "2. Check details":
                                     value="\n".join(suggested.get("prerequisites", [])))
         outcomes = st.text_area("Learning outcomes, one per line", value="\n".join(suggested.get("learning_outcomes", [])))
         with st.expander("Instructor, schedule, offers and other course details"):
-            optional = {}
+            optional = {"location": st.text_input("Location (optional)", value=suggested.get("location") or "", max_chars=160) or None}
             for field, label in [("instructor_name", "Instructor name"), ("instructor_bio", "Instructor background"),
                     ("schedule", "Schedule"), ("offers", "Offers"), ("target_audience", "Who this course is for")]:
                 optional[field] = st.text_area(label, value=suggested.get(field) or "") or None

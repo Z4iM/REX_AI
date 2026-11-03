@@ -48,3 +48,12 @@ def test_instructor_chat_executes_and_renders_results(catalog_client, staff_head
     app.chat_input[0].set_value('List the published courses').run()
     assert not app.exception
     assert any('PY-101' in element.value for element in app.markdown)
+
+    first_id = app.selectbox(key="instructor_session").value
+    next(b for b in app.button if b.label == "New conversation").click().run()
+    assert not app.exception
+    assert app.selectbox(key="instructor_session").value != first_id
+    assert not any("PY-101" in element.value for element in app.markdown)
+    app.selectbox(key="instructor_session").set_value(first_id).run()
+    assert not app.exception
+    assert any("PY-101" in element.value for element in app.markdown)

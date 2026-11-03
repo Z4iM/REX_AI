@@ -68,3 +68,6 @@ scripts/build_demo_examples.py
 *.sqlite3-journal
 *.sqlite-journal
 data/curriculum/
+
+# Optional course-cover worker dependencies
+node_modules/

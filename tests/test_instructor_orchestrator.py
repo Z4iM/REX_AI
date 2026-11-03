@@ -275,3 +275,23 @@ def test_instructor_conversations_are_isolated_in_demo(instructor, monkeypatch, 
     monkeypatch.setenv('REX_APP_MODE','demo')
     monkeypatch.setenv('REX_DEMO_DATA_DIR',str(tmp_path/'demo'))
     assert store.sessions(instructor[0]['X-REX-Reviewer']) == []
+
+
+def test_new_curriculum_workflow_stops_before_unavailable_dependent_ids(catalog_client, instructor, monkeypatch, published_course):
+    from backend.app.agents.curriculum import service as curriculum
+    from test_curriculum_integration import valid_content
+
+    monkeypatch.setattr(curriculum, "generate_curriculum", lambda *a, **k: valid_content())
+    plan(monkeypatch, [
+        {"tool": "generate_curriculum", "body": {"subject": "Python", "course_ids": ["PY-101"]}},
+        {"tool": "generate_campaign", "body": {"curriculum_id": "new_curriculum_id"}},
+        {"tool": "generate_document", "body": {"curriculum_id": "new_curriculum_id", "language": "en"}},
+    ])
+    run = send(catalog_client, instructor, "Create a curriculum, then a campaign and an English course description.")
+    assert run["state"] == "pending"
+    assert [c["tool"] for c in run["plan"]["calls"]] == ["generate_curriculum"]
+    assert "Review and approve" in run["plan"]["reply"]
+    result = execute(catalog_client, instructor, run).json()
+    assert result["state"] == "completed"
+    draft = result["results"][0]["result"]
+    assert draft["status"] == "draft" and isinstance(draft["id"], int)
