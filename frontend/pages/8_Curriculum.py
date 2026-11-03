@@ -2,12 +2,12 @@
 import json
 import streamlit as st
 from frontend.ui import api, header, require_staff, done
-from frontend.components import record_picker, timeline, next_step, readable
+from frontend.components import record_picker, timeline, next_step, readable, task_view
 from backend.app.agents.curriculum.models import CurriculumContent
 
 header("Curriculum studio", "Design a teaching plan from published course sources, then review it before use.")
 reviewer = require_staff()
-tab_create, tab_review, tab_frameworks = st.tabs(["Design a curriculum", "Review and revise", "Framework references"])
+view = task_view("curriculum_view", ["Design a curriculum", "Review and revise", "Framework references"])
 courses = api("GET", "/api/v1/catalog/courses")
 saved = api("GET", "/api/v1/curriculum")
 frameworks = api("GET", "/api/v1/curriculum/frameworks")
@@ -15,11 +15,12 @@ if courses is None or saved is None or frameworks is None:
     st.stop()
 labels = {c["course_id"]: f'{c["title"]} ({c["course_id"]})' for c in courses["items"]}
 verified = {fw["id"]: fw for fw in frameworks["items"] if fw.get("reviewed_at")}
-with tab_create:
+if view == "Design a curriculum":
     st.info("Start with a published course. Generated modules and activities are proposed teaching content until a reviewer approves them.")
     if not labels:
-        st.warning("Publish a reviewed course first. Then return here to design its curriculum.")
-    chosen = st.pills("Published source courses", list(labels), format_func=labels.get, selection_mode="multi") or []
+        next_step("Publish a course first", "A teaching plan needs a published course to work from.", "pages/4_Course_Approvals.py", "Review and publish a course")
+        st.stop()
+    chosen = st.pills("Published source courses", list(labels), format_func=labels.get, selection_mode="multi", default=list(labels) if len(labels) == 1 else None) or []
     source = next((c for c in courses["items"] if chosen and c["course_id"] == chosen[0]), {})
     with st.form("curriculum_create"):
         subject = st.text_input("What course are you designing?", value=source.get("title", ""), max_chars=500, key="subject-" + ",".join(chosen))
@@ -31,12 +32,14 @@ with tab_create:
             language = st.radio("Curriculum language", ["English", "Arabic"], horizontal=True)
         with right:
             audience = st.text_input("Who is this course for?", max_chars=300)
-            department = st.text_input("Department", max_chars=200)
+        requirements = st.text_area("Teaching goals and practical requirements (optional)", max_chars=4000)
+        with st.expander("Optional: department, industry, country and standards"):
+            department = st.text_input("Department", value=source.get("department") or "", max_chars=200,
+                                       key="department-" + ",".join(chosen))
             industry = st.text_input("Industry", max_chars=200)
-        country = st.radio("Country", ["", "Egypt", "Saudi Arabia"], horizontal=True, format_func=lambda x:x or "Not specified")
-        requirements = st.text_area("Teaching goals and practical requirements", max_chars=4000)
-        framework = st.selectbox("Optional verified framework", [None, *verified],
-                                 format_func=lambda x: "No accreditation comparison" if x is None else verified[x]["name"])
+            country = st.radio("Country", ["", "Egypt", "Saudi Arabia"], horizontal=True, format_func=lambda x:x or "Not specified")
+            framework = st.selectbox("Verified framework", [None, *verified],
+                                     format_func=lambda x: "No standards comparison" if x is None else verified[x]["name"])
         research = st.form_submit_button("Research approved source topics", disabled=not labels)
         generate = st.form_submit_button("Generate curriculum draft", type="primary", disabled=not labels)
     if research or generate:
@@ -57,13 +60,14 @@ with tab_create:
                                 "accreditation_framework_id": framework})
                     if result:
                         st.session_state["curriculum_selected"] = result["id"]
-                        done("Curriculum draft saved. Open Review and revise to inspect it and submit it for approval.")
+                        st.session_state["curriculum_view"] = "Review and revise"
+                        done("Draft saved. Check the teaching plan below and submit it when ready.")
     if st.session_state.get("curriculum_research"):
         with st.container(border=True):
             st.subheader("Topics found in your approved sources")
             readable(st.session_state["curriculum_research"])
 
-with tab_review:
+if view == "Review and revise":
     items = {c["id"]: c for c in saved["items"]}
     if not items:
         st.info("No curricula yet. Use Design a curriculum to create the first draft.")
@@ -176,7 +180,7 @@ with tab_review:
                 if st.session_state.get("show_technical_details"):
                     st.json(c["source_records"])
 
-with tab_frameworks:
+if view == "Framework references":
     st.info("Built-in framework summaries are starting references. Verify the original standard, its version and the criteria before using alignment. No framework listing is an accreditation claim.")
     mapping = {fw["id"]: fw for fw in frameworks["items"]}
     if mapping:

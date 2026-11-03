@@ -161,11 +161,15 @@ def test_document_ui_generate_review_and_download(catalog_client, staff_headers,
     element(app.button, "Generate document draft").click().run()
     assert not app.exception
     assert len(service.list_documents()) == 1
+    assert app.radio(key="_view_document_view").value == "Saved documents"
+    assert app.radio(key="_view_document_detail_view").value == "Read and download"
+    app.radio(key="_view_document_detail_view").set_value("Review decision").run()
     element(app.text_area, "Review reason").set_value("Checked all sources and generated files")
     element(app.checkbox, "I checked the complete document and source facts").check()
     element(app.button, "Save review decision").click().run()
     assert not app.exception
     assert service.list_documents()[0]["status"] == "approved"
+    app.radio(key="_view_document_detail_view").set_value("Read and download").run()
     element(app.button, "Prepare PDF").click().run()
     assert not app.exception
     assert any(b.label == "Download PDF" for b in app.get("download_button"))

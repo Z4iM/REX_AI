@@ -13,20 +13,21 @@ if st.button("Load course examples", type="primary"):
         result = api("POST", "/api/v1/demo/stage-courses", json={"reviewer": st.session_state["staff_name"]})
     if result:
         st.success(result["notice"])
-        st.dataframe(result["items"], hide_index=True)
-st.write("Open **Review and publish**, choose Python Foundations Demo, verify the fields, select Save verified course, then Publish course below.")
+        st.write(f'Course files ready for review: {len(result["items"])}')
+st.write("Open **Review and publish**, choose Python Foundations Demo, verify the fields, select Save verified course, then confirm publication on the next step.")
+st.page_link("pages/4_Course_Approvals.py", label="Go to course review", icon=":material/arrow_forward:")
 st.subheader("2. Try the learner workflow")
 st.write("Open Course library, then Learning advisor. Ask: What does Python Foundations Demo cost and who teaches it? Try the guided recommendation with a beginner level, online delivery and a 3000 EGP budget.")
 st.subheader("3. Create and review a document")
 st.write("Open **Document studio**, approve the course description template, choose the published Python course and generate a draft. Review it, save a decision and download PDF or Word. Arabic is also available.")
-st.subheader("4. Try Faris's opportunity workflow")
+st.subheader("4. Try the opportunity dashboard")
 if st.button("Load tender examples"):
     result = api("POST", "/api/v1/demo/stage-tenders")
     if result:
         st.success(f"Added {result['new']} opportunities; rejected {result['rejected']}; duplicates {result['duplicates']}.")
 st.write("Open Training opportunities. Egyptian and Saudi training examples should appear. Germany and expired examples are filtered out. Change a review status and inspect dashboard alerts. No email or webhook is sent.")
 st.subheader("5. Test rejection and download all examples")
-st.write("Download the pack below. Upload negative_cases/reject_missing_information.md in Add course documents, reject it with a reason, and confirm it cannot be approved. Word and PDF course copies let you test all three upload formats. The reference pack contains ten authored teaching-document examples; use the Curriculum studio to generate and review the teaching plan before creating curriculum-based materials.")
+st.write("Download the pack below. Upload negative_cases/reject_missing_information.md in Upload course sources, reject it with a reason, and confirm it cannot be approved. Word and PDF course copies let you test all three upload formats. The reference pack contains ten authored teaching-document examples; use the Curriculum studio to generate and review the teaching plan before creating curriculum-based materials.")
 if st.button("Prepare example pack download"):
     data = api("GET", "/api/v1/demo/examples.zip", binary=True)
     if data:

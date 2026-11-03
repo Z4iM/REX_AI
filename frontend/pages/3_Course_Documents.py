@@ -15,15 +15,18 @@ if st.button("Upload document",type="primary",disabled=upload is None):
             result=api("POST","/api/v1/catalog/uploads",files={"file":(upload.name,upload.getvalue())},data={"enable_ocr":str(ocr).lower()})
         if result:
             st.session_state["review_upload"]=result["upload_id"]
+            st.session_state["source_review_view"] = "1. Read source"
             prefix="This exact file was already saved as " if result["already_uploaded"] else "Saved original file: "
             done(prefix+result["filename"]+" ("+result["file_type"].upper()+"). It has not been published.")
 next_step("2  Check the source and course facts", "Open the review page, read the extracted text and verify the details. Publishing is a separate final step.",
           "pages/4_Course_Approvals.py", "Continue to review and publish")
 records=api("GET","/api/v1/catalog/uploads")
 if records and records["items"]:
-    st.subheader("Previously uploaded originals")
+    st.divider()
+    st.subheader("Find an earlier upload")
     st.caption("These are separate saved files. A PDF upload does not create MD or DOCX source copies.")
     selected=record_picker(records["items"],key="upload-library",id_field="upload_id",title_field="filename",label="uploads")
     if selected and st.button("Review selected source",type="primary"):
         st.session_state["review_upload"]=selected
+        st.session_state["source_review_view"] = "1. Read source"
         st.switch_page("pages/4_Course_Approvals.py")

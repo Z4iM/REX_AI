@@ -57,6 +57,10 @@ SPECS = [
 TOOLS = {name: {'name': name, 'method': method, 'path': path, 'decision': decision}
          for name, method, path, decision in SPECS}
 IDENTITY_FIELDS = {'reviewer', 'reviewer_name', 'requester'}
+RFP_COUNTRY_ALIASES = {
+    'eg': 'EG', 'egypt': 'EG', 'مصر': 'EG',
+    'sa': 'SA', 'saudi arabia': 'SA', 'السعودية': 'SA', 'المملكة العربية السعودية': 'SA',
+}
 
 
 def route_for(app, tool):
@@ -116,6 +120,12 @@ def validate_call(app, call, reviewer):
         raise HTTPException(422, 'Unsupported instructor tool')
     tool = TOOLS[call.tool]
     route = route_for(app, tool)
+    if call.tool == 'opportunities' and 'country' in call.query:
+        country = call.query['country']
+        code = RFP_COUNTRY_ALIASES.get(' '.join(country.casefold().split())) if isinstance(country, str) else None
+        if code is None:
+            raise HTTPException(422, 'Saved opportunities can only be filtered by Egypt or Saudi Arabia.')
+        call.query['country'] = code
     for group, fields in [('path', route.dependant.path_params), ('query', route.dependant.query_params)]:
         values = getattr(call, group)
         if set(values) - {f.name for f in fields}:

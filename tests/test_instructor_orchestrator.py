@@ -68,6 +68,33 @@ def test_read_tools_run_without_confirmation(catalog_client, instructor, monkeyp
     assert run['confirmed_by'] is None
 
 
+@pytest.mark.parametrize('country,code', [('Egypt', 'EG'), ('Saudi Arabia', 'SA'), ('مصر', 'EG'), ('sa', 'SA')])
+def test_saved_opportunities_normalizes_country_and_filters_results(catalog_client, instructor, monkeypatch, country, code):
+    headers, _ = instructor
+    records = [
+        {'title': f'Staff training in {name}', 'issuer': 'Test provider', 'country': name,
+         'category': 'Professional training', 'deadline': '2099-01-01',
+         'description': 'Deliver software training and professional development for staff.',
+         'source_url': f'https://example.invalid/opportunities/{index}'}
+        for index, name in enumerate(('Egypt', 'Saudi Arabia'))
+    ]
+    result = catalog_client.post('/api/v1/rfp/import', headers=headers, json={'items': records})
+    assert result.status_code == 200 and result.json()['new'] == 2
+    plan(monkeypatch, [{'tool': 'opportunities', 'query': {'country': country}}])
+    run = send(catalog_client, instructor, f'Show me the saved training opportunities in {country}.')
+    assert run['state'] == 'completed', run
+    assert run['plan']['calls'][0]['query']['country'] == code
+    assert [row['country_code'] for row in run['results'][0]['result']['items']] == [code]
+
+
+def test_saved_opportunities_rejects_unsupported_country(catalog_client, instructor, monkeypatch):
+    plan(monkeypatch, [{'tool': 'opportunities', 'query': {'country': 'Germany'}}])
+    run = send(catalog_client, instructor, 'Show me the saved training opportunities in Germany.')
+    assert run['state'] == 'failed'
+    assert run['results'] == []
+    assert 'Egypt or Saudi Arabia' in run['error']
+
+
 def test_campaign_generation_confirmation_and_duplicate_protection(catalog_client, instructor, monkeypatch, approved_plan, campaign_generator):
     from backend.app.marketing import service as marketing
     body = campaign_body(approved_plan)

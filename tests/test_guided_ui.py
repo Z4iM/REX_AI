@@ -37,6 +37,9 @@ def test_demo_ui_single_sign_in_navigation_and_workflow(catalog_client,staff_hea
     uploads=catalog_client.get('/api/v1/catalog/uploads',headers=staff_headers).json()['items']
     primary=next(item['upload_id'] for item in uploads if item['filename']=='demo-py-101.md')
     element(ui.button,'Open demo-py-101.md').click().run()
+    assert not any(e.label=='Save verified course' for e in ui.button)
+    element(ui.button,'Continue to course details').click().run()
+    assert ui.radio(key='_view_source_review_view').value=='2. Check details'
     assert element(ui.text_input,'Course ID (unique)').value=='DEMO-PY-101'
     element(ui.checkbox,'I verified these course details against the source document').check()
     element(ui.checkbox,'I checked every extraction warning against the original document').check()

@@ -287,6 +287,7 @@ def test_streamlit_reject_form_validates_and_shows_saved_history(client, upload,
     def element(elements, label):
         return next(e for e in elements if e.label == label)
 
+    app.radio(key="_view_source_review_view").set_value("History and rejection").run()
     element(app.button, "Reject document").click().run()
     assert any("Enter a reviewer" in e.value for e in app.error)
     element(app.text_area, "Rejection reason (required)").set_value("Missing verified learning outcomes")
@@ -295,8 +296,9 @@ def test_streamlit_reject_form_validates_and_shows_saved_history(client, upload,
     assert not app.exception
     assert any("Document rejected" in e.value for e in app.success)
     assert element(app.button, "Reject document").disabled
-    assert element(app.button, "Save verified course").disabled
     assert any("Missing verified learning outcomes" in e.value for e in app.text)
     assert any("UI Reviewer" in e.value for e in app.markdown)
+    app.radio(key="_view_source_review_view").set_value("2. Check details").run()
+    assert element(app.button, "Save verified course").disabled
     saved = store.load_upload(upload[0])
     assert saved["rejected_by"] == "UI Reviewer" and len(saved["review_history"]) == 1

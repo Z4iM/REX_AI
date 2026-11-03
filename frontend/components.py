@@ -42,6 +42,18 @@ def next_step(title, text, page=None, label='Continue'):
             st.page_link(page, label=label, icon=':material/arrow_forward:')
 
 
+def task_view(key, options, label="What would you like to do?"):
+    """Show one task at a time and preserve navigation across page changes."""
+    widget = "_view_" + key
+    current = st.session_state.get(key, options[0])
+    st.session_state[widget] = current if current in options else options[0]
+
+    def remember():
+        st.session_state[key] = st.session_state[widget]
+
+    return st.radio(label, options, key=widget, horizontal=True, on_change=remember)
+
+
 def record_picker(records, *, key, id_field='id', title_field='title', label='records', details=None, statuses=True, searchable=True):
     """Keep original IDs intact; filter and page visible cards without deleting data."""
     records = list(records)

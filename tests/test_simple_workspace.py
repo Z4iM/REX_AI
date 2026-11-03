@@ -91,6 +91,8 @@ def test_document_history_versions_have_sources_and_keep_selection(catalog_clien
     metadata=catalog_client.get('/api/v1/documents',headers=staff_headers).json()['items']
     assert len(metadata)==2 and all(r['source_files']==['fixture.md'] for r in metadata)
     app=app_page(staff_headers,'5_Document_Generation.py')
+    app.radio(key='_view_document_view').set_value('Saved documents').run()
+    app.radio(key='_view_document_detail_view').set_value('Version history').run()
     assert any(s.value=='Versions of this document' for s in app.subheader)
     assert not any(s.label=='Saved document' for s in app.selectbox)
     next(b for b in app.button if b.label=='Open version 1').click().run()

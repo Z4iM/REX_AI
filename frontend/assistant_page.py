@@ -1,43 +1,20 @@
-
-import os
-import requests
 import streamlit as st
+from frontend.ui import api, header
+from frontend.components import task_view
+from frontend.guided_recommendation import render_guided_recommendation
 
-
-API_URL = os.getenv("REX_API_URL", "http://127.0.0.1:8000").rstrip("/")
-
-from frontend.ui import header
-header("Ask REX", "Talk about your learning goals, explore a learning path, or ask about approved courses. Guided course recommendations are available below.")
-
-# ---------------------------------
-# Check FastAPI connection
-# ---------------------------------
-try:
-    health = requests.get(
-        f"{API_URL}/health",
-        timeout=5
-    )
-
-    health.raise_for_status()
-
-    pass
-
-except requests.exceptions.RequestException:
-    st.error(
-        "Cannot connect to FastAPI. "
-        "Make sure the backend is running."
-    )
+header("Learning advisor", "Ask a quick question or get help choosing a course.")
+mode = task_view("learner_view", ["Ask REX", "Help me choose a course"])
+if mode == "Help me choose a course":
+    render_guided_recommendation()
     st.stop()
 
-
-# ---------------------------------
-# Chat history
-# ---------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if not st.session_state.messages:
-    st.info("Start with a greeting or tell REX what you want to learn. Course details come from published, approved academy information.")
+    st.write("Try: **What should I learn to start working with data?**")
+    st.caption("For a specific academy course, include its name in your question.")
 
 
 # Display previous messages
@@ -78,38 +55,20 @@ if prompt:
         "content": prompt,
     })
 
-    try:
-        with st.spinner("REX AI is thinking..."):
+    with st.spinner("Preparing your answer…"):
+        result = api("POST", "/api/v1/chat", staff=False, request_timeout=180,
+                     json={"message": prompt, "history": [
+                         {"role": m["role"], "content": m["content"][:4000]}
+                         for m in st.session_state.messages[:-1][-12:]
+                     ]})
+    if result is None:
+        st.session_state.messages.pop()
+        st.stop()
 
-            response = requests.post(
-                f"{API_URL}/api/v1/chat",
-                json={"message": prompt, "history": [
-                    {"role": m["role"], "content": m["content"][:4000]}
-                    for m in st.session_state.messages[:-1][-12:]
-                ]},
-                timeout=180,
-            )
-
-            response.raise_for_status()
-            result = response.json()
-
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": result["answer"],
-            "sources": result["sources"],
-            "mode": result.get("mode", "APPROVED_CATALOG"),
-        })
-
-    except requests.exceptions.RequestException:
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": (
-                "Sorry, I couldn't process your request. "
-                "Please try again."
-            ),
-        })
-
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": result["answer"],
+        "sources": result["sources"],
+        "mode": result.get("mode", "APPROVED_CATALOG"),
+    })
     st.rerun()
-from frontend.guided_recommendation import render_guided_recommendation
-
-render_guided_recommendation()

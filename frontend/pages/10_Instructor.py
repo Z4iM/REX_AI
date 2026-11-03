@@ -6,7 +6,12 @@ from frontend.components import record_picker, date_label, readable
 
 header('Instructor workspace', 'Describe your goal. REX coordinates the academy agents and shows proposed changes before running them.')
 reviewer = require_staff()
-st.caption('Your existing staff sign-in applies here. Reviews, publication and source verification remain human decisions.')
+with st.expander("What can I ask REX?"):
+    st.markdown("- **Find information:** Show the published courses.\n"
+                "- **Plan training:** Create a beginner curriculum for [course name].\n"
+                "- **Prepare content:** Draft a LinkedIn campaign for [course name].\n"
+                "- **Find opportunities:** Show saved training tenders in Egypt.")
+    st.caption("REX asks before changing records. Staff still review and approve the work.")
 
 with st.expander('Attach a course source'):
     source = st.file_uploader('Course document', type=['pdf', 'docx', 'md'])

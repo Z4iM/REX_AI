@@ -1,7 +1,7 @@
 """Guided document creation, readable version history and human review."""
 import streamlit as st
 from frontend.ui import api, header, require_staff
-from frontend.components import record_picker, badge, timeline, date_label, next_step
+from frontend.components import record_picker, badge, timeline, date_label, next_step, task_view
 header("Document studio", "Make a training document, check it, and download the version you need.")
 reviewer = require_staff()
 if message := st.session_state.pop("document_feedback", None):
@@ -15,8 +15,8 @@ if templates is None or records is None or courses is None or curricula is None:
 by_template = {t["template_id"]:t for t in templates["items"]}
 prior = {r["artifact_id"]:r for r in records["items"]}
 course_labels = {c["course_id"]:f'{c["title"]} ({c["course_id"]})' for c in courses["items"]}
-create_tab, saved_tab = st.tabs(["Create a document", "My documents and history"])
-with create_tab:
+view = task_view("document_view", ["Create a document", "Saved documents"])
+if view == "Create a document":
     st.subheader("1  What do you want to make?")
     kind = st.pills("Document type",list(by_template),default="course_description",format_func=lambda x:by_template[x]["name"],key="document-kind") or "course_description"
     template = by_template[kind]
@@ -66,14 +66,16 @@ with create_tab:
                 "revision_of":revision_of,"revision_instructions":instructions})
         if result:
             st.session_state["selected_document"]=result["artifact_id"]
-            st.session_state["document_feedback"]="Document saved. Open My documents and history to read it, review it and download files."
+            st.session_state["document_view"] = "Saved documents"
+            st.session_state["document_detail_view"] = "Read and download"
+            st.session_state["document_feedback"] = "Draft saved. Read it below, then open Review decision when ready."
             st.rerun()
     st.caption("Your original source keeps its uploaded format. The document you create here is a separate output, available as PDF and Word.")
-with saved_tab:
+if view == "Saved documents":
     st.subheader("Find a document")
     selected=record_picker(records["items"],key="selected_document",id_field="artifact_id",label="documents")
     if selected is None:
-        st.info("Create a document in the first tab. Its saved versions will appear here.")
+        st.info("Choose Create a document above. Saved drafts and versions will appear here.")
         st.stop()
     record=api("GET",f"/api/v1/documents/{selected}")
     if record is None:
@@ -83,8 +85,8 @@ with saved_tab:
     badge(record["status"])
     st.caption(f'Version {record["version"]} · {"Arabic" if record["language"]=="ar" else "English"} · {date_label(record["created_at"])}')
     st.write("**Original sources:** "+", ".join(s["source_file"] for s in record["sources"]))
-    read_tab, edit_tab, decision_tab, history_tab=st.tabs(["Read and download","Edit a new version","Review decision","Version history"])
-    with read_tab:
+    detail = task_view("document_detail_view", ["Read and download", "Edit a new version", "Review decision", "Version history"], "Work with this document")
+    if detail == "Read and download":
         if record["status"] != "approved":
             st.info("This is not an approved final document. Check the content and record a decision in Review decision.")
         for section in record["content"]["sections"]:
@@ -103,7 +105,7 @@ with saved_tab:
                                 file_name=f"andalusia-{selected}.{fmt}",key=selected+fmt,on_click="ignore")
         else:
             st.warning("This version needs changes or was rejected. Make a new version before downloading it.")
-    with edit_tab:
+    if detail == "Edit a new version":
         st.caption("Edits preserve the original version and require another review. Every section retains its source citations.")
         with st.form("manual_document_revision_" + selected):
             edited_title = st.text_input("Edited document title", value=record["content"]["title"])
@@ -125,10 +127,11 @@ with saved_tab:
                     "revision_instructions": edit_reason, "edited_content": {"title": edited_title, "sections": edited_sections}})
                 if result:
                     st.session_state["selected_document"] = result["artifact_id"]
+                    st.session_state["document_detail_view"] = "Read and download"
                     st.session_state["document_feedback"] = "Edited draft saved as a new version. Review it before approval."
                     st.rerun()
 
-    with decision_tab:
+    if detail == "Review decision":
         if record["status"] == "pending_review":
             with st.form("review_" + selected):
                 decision = st.radio("Review decision", ["approve", "request_revision", "reject"], horizontal=True, format_func=lambda x: {"approve":"Approve", "request_revision":"Ask for changes", "reject":"Reject"}[x])
@@ -140,9 +143,10 @@ with saved_tab:
                     st.error("Enter reviewer identification, a reason, and confirm the document review.")
                 elif api("POST", f"/api/v1/documents/{selected}/review", json={
                         "reviewer": reviewer, "decision": decision, "reason": reason}):
-                    st.session_state["document_feedback"] = "Review decision saved. Use the generation form to create a revision when needed."
+                    st.session_state["document_detail_view"] = "Read and download"
+                    st.session_state["document_feedback"] = "Review decision saved. See the updated status below."
                     st.rerun()
-    with history_tab:
+    if detail == "Version history":
         st.subheader("Versions of this document")
         family=[r for r in records["items"] if r["family_id"]==record["family_id"]]
         for version in sorted(family,key=lambda r:r["version"],reverse=True):

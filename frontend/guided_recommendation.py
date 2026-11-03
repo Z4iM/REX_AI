@@ -9,13 +9,7 @@ API_URL = os.getenv("REX_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 def render_guided_recommendation():
 
-    st.divider()
-    st.header("Help me choose a course")
-
-    st.caption(
-        "Answer a few questions and REX AI will help "
-        "you find suitable courses."
-    )
+    st.write("Answer a few short questions to find courses that fit your goals, schedule, and budget.")
     st.caption("Learning answers are stored for up to seven days and used with the configured AI provider for recommendations. "
                "Keep sensitive personal information out of learning answers. Contact details are optional and stay in the staff system.")
 

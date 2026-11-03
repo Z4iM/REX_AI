@@ -116,3 +116,10 @@ def test_ui_greeting_and_followup_history(catalog_client, monkeypatch):
     assert not app.exception
     assert len(seen[0]['history']) == 2
     assert seen[0]['history'][0]['content'] == 'hello'
+
+    app.radio(key="_view_learner_view").set_value("Help me choose a course").run()
+    assert not app.exception
+    assert not app.chat_input
+    app.radio(key="_view_learner_view").set_value("Ask REX").run()
+    assert not app.exception
+    assert any("What kind of work do you enjoy?" in m.value for m in app.markdown)

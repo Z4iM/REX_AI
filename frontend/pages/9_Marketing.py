@@ -2,11 +2,11 @@
 import json
 import streamlit as st
 from frontend.ui import api, header, require_staff, done
-from frontend.components import record_picker, timeline
+from frontend.components import record_picker, timeline, task_view, next_step
 
 header("Campaign studio", "Turn approved courses and curricula into reviewed, multi-channel marketing content.")
 reviewer = require_staff()
-create, review = st.tabs(["Create a campaign", "Review and export"])
+view = task_view("campaign_view", ["Create a campaign", "Review and export"])
 courses = api("GET", "/api/v1/catalog/courses")
 curricula = api("GET", "/api/v1/curriculum", params={"status": "approved"})
 campaigns = api("GET", "/api/v1/marketing")
@@ -17,11 +17,10 @@ approved = {c["id"]: c for c in curricula["items"]}
 names = {"social_caption": "Social media captions", "facebook_instagram": "Facebook / Instagram ads",
          "linkedin": "LinkedIn posts", "email": "Email marketing", "whatsapp": "WhatsApp messages",
          "headline": "Campaign headlines", "cta": "Calls to action"}
-with create:
+if view == "Create a campaign":
     st.info("Campaigns use published facts and an approved teaching plan. Generated content stays a draft until reviewed. Sending and publishing remain manual.")
     if not approved or not course_labels:
-        st.warning("Publish a course and approve its curriculum before creating a campaign.")
-        st.page_link("pages/8_Curriculum.py", label="Open curriculum studio", icon=":material/account_tree:")
+        next_step("Approve a teaching plan first", "A campaign needs a published course and its approved curriculum.", "pages/8_Curriculum.py", "Open Curriculum studio")
     else:
         options = list(approved)
         preferred = st.session_state.get("approved_curriculum_id")
@@ -46,8 +45,9 @@ with create:
                         "channels": channels, "budget_egp": budget or None})
                 if result:
                     st.session_state["campaign_selected"] = result["id"]
-                    done("Campaign draft saved. Open Review and export to check its claims and approve it.")
-with review:
+                    st.session_state["campaign_view"] = "Review and export"
+                    done("Draft saved. Check the campaign below before approving it.")
+if view == "Review and export":
     records = {r["id"]: r for r in campaigns["items"]}
     if not records:
         st.info("No campaign drafts yet. Create a campaign after approving a curriculum.")

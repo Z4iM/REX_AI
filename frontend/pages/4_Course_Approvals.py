@@ -1,7 +1,7 @@
 """Source review with explicit original formats and separate task tabs."""
 import streamlit as st
 from frontend.ui import api, header, require_staff
-from frontend.components import record_picker, timeline, badge, next_step
+from frontend.components import record_picker, timeline, badge, next_step, task_view
 header("Review and publish", "Choose a source, check its course facts, then decide when learners can see it.")
 require_staff()
 reviewer = st.session_state["staff_name"]
@@ -35,8 +35,8 @@ for warning in source["extraction_warnings"]:
 if source["review_status"] == "blocked_incomplete":
     st.error("Some pages could not be read. Upload a clearer file before approval.")
 rejected = source["review_status"] == "rejected" or source["approval_status"] == "rejected"
-read_tab, details_tab, publish_tab, history_tab = st.tabs(["1  Read source", "2  Check details", "3  Publish", "History and rejection"])
-with read_tab:
+view = task_view("source_review_view", ["1. Read source", "2. Check details", "3. Publish", "History and rejection"], "Review step")
+if view == "1. Read source":
     st.write("Compare the extracted text with your original document before saving any course facts.")
     if st.button("Prepare original " + source["file_type"].upper() + " download"):
         data = api("GET", f"/api/v1/catalog/uploads/{upload_id}/original", binary=True)
@@ -46,8 +46,10 @@ with read_tab:
         with st.container(border=True):
             st.markdown("**" + chunk["metadata"].get("section", "Source text") + "**")
             st.text(chunk["text"])
-    st.info("Next: open 2 Check details, verify the fields and save the course.")
-with details_tab:
+    if st.button("Continue to course details", type="primary", disabled=rejected):
+        st.session_state["source_review_view"] = "2. Check details"
+        st.rerun()
+if view == "2. Check details":
     st.subheader("Check the course details")
     st.write("Fill in the basics, compare them with the source, then save. You will publish separately.")
     st.write("Enter details from the source document. Do not guess missing prices or prerequisites.")
@@ -136,16 +138,21 @@ with details_tab:
                 }
                 result = api("POST", f"/api/v1/catalog/uploads/{upload_id}/approve", json=payload)
                 if result:
-                    st.success("Course saved. Open its publication panel below and select Publish course.")
+                    st.session_state["source_review_view"] = "3. Publish"
+                    st.session_state["catalog_review_feedback"] = "Course details verified. Publish below when you are ready for learners to see it."
                     st.rerun()
             except ValueError:
                 st.error("Check that price and duration are numbers, and each FAQ has question | answer.")
-with publish_tab:
-    st.subheader("Make this course visible to learners")
+if view in ("3. Publish", "History and rejection"):
     records = api("GET", "/api/v1/catalog/staff/courses")
     related = [c for c in (records or {}).get("items", []) if c["upload_id"] == upload_id]
+
+if view == "3. Publish":
+    st.subheader("Make this course visible to learners")
+    if records is None:
+        st.stop()
     if not related:
-        st.info("No verified course is linked to this file yet. Complete 2 Check details first.")
+        st.info("No verified course is linked to this file yet. Choose 2. Check details first.")
     for course in related:
         with st.container(border=True):
             st.subheader(course["title"])
@@ -175,7 +182,7 @@ with publish_tab:
                         elif api("POST", f'/api/v1/catalog/staff/courses/{course["course_id"]}/withdraw', json={"reviewer":reviewer}):
                             st.session_state["catalog_review_feedback"] = "Course hidden from learners."
                             st.rerun()
-with history_tab:
+if view == "History and rejection":
     st.subheader("Source decisions")
     if rejected:
         st.error("This document was rejected. Upload a corrected source document for a new review.")

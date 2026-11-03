@@ -1,14 +1,14 @@
 """Student catalog: published staff-verified records only."""
 import streamlit as st
 from frontend.ui import api, header
-from frontend.components import record_picker
+from frontend.components import record_picker, next_step
 header("Browse courses", "Explore published courses. Open a course for requirements, schedules and learning outcomes.")
 result = api("GET", "/api/v1/catalog/courses", staff=False)
 if result is None:
     st.stop()
 courses = result["items"]
 if not courses:
-    st.info("No courses are published yet. Staff must review and publish course information first.")
+    next_step("No courses are listed yet", "You can still ask REX about learning goals and where to start.", "assistant_page.py", "Ask the Learning Advisor")
     st.stop()
 selected=record_picker(courses,key="learner_course",id_field="course_id",label="courses",statuses=False,
                        details=lambda c: " · ".join(str(c.get(k) or "Ask staff") for k in ("level","training_format")))
@@ -17,6 +17,7 @@ if selected is None:
 course=next(c for c in courses if c["course_id"]==selected)
 st.divider()
 st.subheader(course["title"])
+st.page_link("assistant_page.py", label="Get help choosing a course", icon=":material/forum:")
 with st.container():
     st.write(course["description"])
     price = f"{course['price_egp']:g} EGP" if course.get("price_egp") is not None else "Ask staff about pricing"

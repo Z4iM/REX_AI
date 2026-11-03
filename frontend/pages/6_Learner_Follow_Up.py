@@ -4,7 +4,9 @@ from frontend.components import record_picker, date_label
 header("Learner follow-up", "People who asked the academy to contact them. No messages are sent automatically.")
 require_staff()
 result=api("GET","/api/v1/catalog/staff/leads")
-items=(result or {}).get("items",[])
+if result is None:
+    st.stop()
+items = result["items"]
 if not items:
     st.info("No follow-up requests yet. Learners can leave their details after completing the guided recommendation.")
 else:
@@ -17,7 +19,8 @@ else:
             st.write("Email: "+(item.get("email") or "Not provided"))
             st.write("Phone: "+(item.get("phone") or "Not provided"))
             st.write("Interested in: "+str(item["interest"]))
-            for label,value in item["profile"].items():
-                st.write(label.replace("_"," ").title()+": "+str(value or "Not specified"))
+            with st.expander("Learning preferences"):
+                for label, value in item["profile"].items():
+                    st.write(label.replace("_", " ").title() + ": " + str(value or "Not specified"))
             st.caption("Consent received: "+date_label(item["consented_at"]))
         st.info("Use the academy’s approved contact process. This page does not send a message.")

@@ -1,12 +1,12 @@
 from backend.app.agents.rfp.sources import parse_upload, SourceError
 import streamlit as st
 from frontend.ui import api, header, require_staff, done, diagnostics
-from frontend.components import record_picker
+from frontend.components import record_picker, task_view
 
 status = header("Training opportunities", "Find and review training opportunities in Egypt and Saudi Arabia.")
 require_staff()
-tab_list, tab_import, tab_alerts = st.tabs(["Opportunities", "Add opportunities", "Alerts & activity"])
-with tab_list:
+view = task_view("opportunity_view", ["Browse opportunities", "Add opportunities", "Alerts and activity"])
+if view == "Browse opportunities":
     country = st.radio("Country", ["All", "Egypt", "Saudi Arabia"], horizontal=True)
     query = st.text_input("Search opportunities")
     params = {"q": query, "limit": 100}
@@ -14,7 +14,7 @@ with tab_list:
         params["country"] = "EG" if country == "Egypt" else "SA"
     result = api("GET", "/api/v1/rfp/opportunities", params=params)
     if result and not result["items"]:
-        st.info("No opportunities yet. Import a file in Add opportunities, or use the demo examples.")
+        st.info("No opportunities found. Clear your search or choose Add opportunities to import a file.")
     opportunities=(result or {}).get("items", [])
     selected=record_picker(opportunities,key="opportunity-selected",label="opportunities",searchable=False,
         details=lambda r:r["issuer"]+" · "+r["country_code"]+" · Deadline: "+str(r.get("deadline") or "Check with issuer")) if opportunities else None
@@ -43,7 +43,7 @@ with tab_list:
                 if api("PATCH", f'/api/v1/rfp/opportunities/{item["id"]}', json={"workflow_status": new_status, "reviewer_notes": notes}):
                     done("Opportunity review saved.")
             diagnostics(item)
-with tab_import:
+if view == "Add opportunities":
     st.write("Import a JSON, CSV, or Excel export of opportunities. The agent checks countries, deadlines, relevance, and duplicates.")
     uploaded = st.file_uploader("Opportunity file", type=["json", "csv", "xlsx"])
     summarize = st.checkbox("Ask AI to summarize new opportunities", value=False)
@@ -59,7 +59,7 @@ with tab_import:
                 st.success(f'{report["new"]} saved · {report["rejected"]} rejected · {report["duplicates"]} duplicates · {report["already_known"]} already saved')
                 diagnostics(report, "Import results")
         except (ValueError, TypeError, SourceError):
-            st.error("Choose a valid JSON, CSV, or Excel file with 1 to 200 opportunities, under 10 MB. Use the examples folder as a reference.")
+            st.error("Choose a valid JSON, CSV, or Excel file with 1 to 200 opportunities and a size of 10 MiB or less.")
     with st.expander("Search configured sources online"):
         st.write("Results may need manual verification and API usage may incur costs.")
         if st.button("Run online source search", disabled=bool(status and status["mode"] == "demo")):
@@ -68,12 +68,17 @@ with tab_import:
             if report:
                 st.success(f'{report["new_count"]} new opportunities found.')
                 diagnostics(report, "Source search report")
-with tab_alerts:
+if view == "Alerts and activity":
     result = api("GET", "/api/v1/rfp/notifications")
+    if result is not None and not result["items"]:
+        st.info("No new alerts. Relevant opportunities appear here after an import or search.")
     for item in (result or {}).get("items", []):
         st.info(item["message"])
     activity = api("GET", "/api/v1/rfp/activity")
     if activity:
         st.subheader("Rejected by the checks")
-        st.dataframe(activity["rejected"], hide_index=True, width="stretch")
+        if activity["rejected"]:
+            st.dataframe(activity["rejected"], hide_index=True, width="stretch")
+        else:
+            st.caption("No rejected opportunities have been recorded.")
         diagnostics(activity["runs"], "Source run history")
