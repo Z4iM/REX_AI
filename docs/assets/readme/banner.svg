@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="345" viewBox="0 0 1200 345" role="img" aria-labelledby="title desc">
+  <title id="title">REX AI — Andalusia Academy</title>
+  <desc id="desc">Multi-agent academy workspace for course discovery, curriculum, documents, campaigns and tender research.</desc>
+  <rect width="1200" height="345" rx="28" fill="#33252a"/>
+  <path d="M725 0H1172Q1200 0 1200 28V317Q1200 345 1172 345H725Z" fill="#473239"/>
+  <g font-family="Arial, sans-serif">
+    <rect x="55" y="48" width="257" height="33" rx="16" fill="#61434a"/>
+    <text x="74" y="69" font-size="13" font-weight="700" letter-spacing="2" fill="#f5d7c2">ANDALUSIA ACADEMY</text>
+    <text x="50" y="167" font-size="94" font-weight="800" letter-spacing="-4" fill="#fff6ef">REX AI</text>
+    <text x="57" y="216" font-size="29" font-weight="700" fill="#f2cdb4">Multi-agent academy workspace</text>
+    <text x="58" y="258" font-size="19" fill="#e0cdd0">Verified course data, human review, and connected AI workflows.</text>
+    <text x="58" y="304" font-size="14" font-weight="700" letter-spacing="2" fill="#e6ad91">FASTAPI  /  STREAMLIT  /  SQLITE  /  MCP</text>
+    <g fill="none" stroke="#dba68e" stroke-width="2" opacity=".7">
+      <path d="M946 169L820 83M946 169L1049 62M946 169L1105 165M946 169L1053 276M946 169L819 268"/>
+      <circle cx="946" cy="169" r="74" stroke-dasharray="4 8"/>
+    </g>
+    <circle cx="946" cy="169" r="47" fill="#e3b298"/>
+    <text x="946" y="175" text-anchor="middle" font-size="17" font-weight="800" fill="#39232a">REX</text>
+    <g fill="#543942" stroke="#dba68e" stroke-width="1.5">
+      <rect x="766" y="63" width="108" height="40" rx="19"/>
+      <rect x="991" y="42" width="116" height="40" rx="19"/>
+      <rect x="1054" y="145" width="102" height="40" rx="19"/>
+      <rect x="999" y="256" width="108" height="40" rx="19"/>
+      <rect x="764" y="248" width="110" height="40" rx="19"/>
+    </g>
+    <g fill="#fff3eb" font-size="13" font-weight="700" text-anchor="middle">
+      <text x="820" y="88">Learners</text>
+      <text x="1049" y="67">Curriculum</text>
+      <text x="1105" y="170">Documents</text>
+      <text x="1053" y="281">Marketing</text>
+      <text x="819" y="273">RFP research</text>
+    </g>
+  </g>
+</svg>

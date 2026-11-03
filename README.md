@@ -1,128 +1,164 @@
-# Andalusia Academy — REX AI
+<p align="center">
+  <img src="docs/assets/readme/banner.svg" alt="REX AI — multi-agent workspace for Andalusia Academy" width="100%">
+</p>
 
-REX AI connects five academy workflows: course advice, educational opportunity research, curriculum design, training documents and marketing campaigns. FastAPI provides the services; Streamlit provides one learner and staff workspace.
+<p align="center">
+  <a href="https://github.com/Z4iM/REX_AI/actions/workflows/ci.yml"><img src="https://github.com/Z4iM/REX_AI/actions/workflows/ci.yml/badge.svg?branch=main" alt="GitHub Actions CI on main"></a>
+  <img src="https://img.shields.io/badge/Python-3.14-3776AB" alt="Python 3.14">
+  <img src="https://img.shields.io/badge/FastAPI-Backend-009688" alt="FastAPI backend">
+  <img src="https://img.shields.io/badge/Streamlit-Workspace-FF4B4B" alt="Streamlit workspace">
+  <img src="https://img.shields.io/badge/SQLite-FTS5-285A7A" alt="SQLite FTS5">
+</p>
 
-## Run locally
+# REX AI
 
-Use the existing repository root. Python 3.14 is used by CI.
-Use a fresh virtual environment for the default installation; an existing global environment may retain optional packages and older dependencies.
+REX AI is a multi-agent training operations MVP developed for **Andalusia Academy**. It helps staff turn verified course information into teaching plans, training documents, and marketing campaigns. Learners get course guidance from the same published catalog, while staff can research training tenders in Egypt and Saudi Arabia.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
-# Copy .env.example to .env only if .env does not already exist.
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-```
+**The main engineering decision:** a model can suggest facts, draft content, and propose actions. The application verifies record state and source provenance, and staff make the decisions that publish or approve work.
 
-In another terminal:
+[Quick start](#quick-start) · [Product preview](#product-preview) · [Architecture](#architecture) · [Verification](#verification)
 
-```powershell
-python -m streamlit run frontend/app.py
-```
+## Product preview
 
-Open http://127.0.0.1:8501. API documentation is at http://127.0.0.1:8000/docs. Restart the backend after changing credentials or provider configuration. Staff use their name and the local administrator key to sign in once.
+<table>
+  <tr>
+    <th>Curriculum Studio</th>
+    <th>Campaign Studio</th>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/readme/curriculum.png" alt="Streamlit curriculum workspace showing a reviewed teaching plan"></td>
+    <td width="50%"><img src="docs/assets/readme/campaign.png" alt="Streamlit campaign workspace showing channel copy and review state"></td>
+  </tr>
+</table>
 
-## Free-tier configuration
+*Screenshots are from the isolated demo workspace using fictional data. Labels and navigation can differ from the latest build.*
 
-Create a key at https://console.groq.com/keys. Keep it in the ignored local `.env`; never share or commit it. Set:
+<details>
+<summary>See a generated training proposal</summary>
+<p align="center"><img src="docs/assets/readme/course-proposal.png" width="425" alt="Cover page of a branded course proposal PDF generated with fictional data"></p>
+</details>
 
-```dotenv
-REX_AI_PROVIDER=groq
-GROQ_API_KEY=your_local_key
-GROQ_TEXT_MODEL=openai/gpt-oss-20b
-REX_RETRIEVAL_BACKEND=sqlite
-REX_ENABLE_AI_WEB_SEARCH=0
-REX_CATALOG_ADMIN_KEY=your_strong_local_staff_key
-```
-
-Groq free-tier requests have account quotas and can become temporarily unavailable. SQLite FTS5 provides local, persistent keyword retrieval over approved course facts; it needs no embedding API, model download or hosted vector service. Common Arabic/English query terms are supported. It is lexical retrieval, rather than semantic vector search. Gemini text generation and Gemini/Chroma retrieval remain available through configuration.
-
-RFP web discovery combines LangSearch MCP (when `LANGSEARCH_API_KEY` is configured) with public tender directories for Egypt and Saudi Arabia. Discovery results require staff verification. File imports work without search credentials.
-
-Course covers are optional. With `PUTER_AUTH_TOKEN` and the Node.js worker installed, publishing a new course queues one background cover attempt per approved revision. Existing covers are served from local storage even without a token. See [provider setup](docs/PROVIDER_SETUP.md) for both integrations.
-
-## Five connected agents
-
-| Agent | Working behavior |
+| Workspace | What it delivers |
 |---|---|
-| Learning advisor | Arabic/English answers using published course facts; guided learner qualification; deterministic budget, delivery and level checks; cited recommendations; consented lead capture. |
-| RFP research | Process portal exports or configured sources; enforce Egypt/Saudi Arabia rules, deadlines, relevance and deduplication; AI summaries; searchable status dashboard and alerts. Discovery results require verification. |
-| Curriculum | Research published source records; generate modules, outcomes, hours, practice, assessments and a capstone; compare against staff-verified framework criteria; review, revise and export a Unicode PDF. |
-| Documents | Ten reviewed template categories; English/Arabic DOCX and PDF; direct content edits and AI-assisted revisions; immutable versions, source citations, file integrity checks and human approval. |
-| Marketing | Read published course facts and an approved curriculum; create seven channel types with multiple variations; edit, review and export approved campaigns. Distribution remains manual. |
+| **Learning Advisor** | Arabic and English guidance, a guided qualification flow, source-cited course answers, constraint-aware recommendations, and consented lead capture. |
+| **RFP Research** | JSON, CSV and Excel imports; LangSearch MCP discovery and public tender directories; Egypt/Saudi Arabia filters, expiry checks, deduplication and dashboard alerts. Search leads require verification. |
+| **Curriculum Studio** | Structured modules, hours, activities, assessments and capstones, with revision history and PDF export. Staff can compare plans against verified framework criteria. |
+| **Document Studio** | Ten template categories, Arabic and English output, branded PDF and editable Word files, source references, and versioned review. |
+| **Campaign Studio** | Campaign strategy and variations for social captions, Facebook/Instagram, LinkedIn, email, WhatsApp, headlines and calls to action. Approved export is available after review; distribution is manual. |
+| **Instructor workspace** | Persistent staff conversations and a planner that proposes actions across the workflows. It uses allowlisted internal APIs, requires confirmation for writes, and keeps approval decisions separate. |
 
-The learner chat handles greetings, explains its capabilities and provides general learning/career guidance even before course records are published. It sends up to twelve recent messages for conversational follow-ups, with only user/assistant roles accepted. General guidance is labelled separately; specific academy course claims still require current approved evidence and citations. Staff-only actions remain outside the learner assistant.
-
-Academy home separates learner tasks from staff shortcuts. The Learning Advisor offers separate chat and guided course choices. Course review opens the publishing step after facts are saved, and newly generated curricula, documents and campaigns open in their review views. Saved sources and generated documents have separate views. Uploads retain their original format and can be downloaded unchanged through an authenticated integrity-checked endpoint. Source review supports filename search, format filters and a read/check/publish sequence. Document history displays immutable versions, source filenames and dated review events. The other workspaces use searchable record cards, plain-language statuses and visible choices; technical details are optional.
-
-## Connected workflow
-
-### Instructor workspace
-
-The staff-only Instructor workspace provides persistent chat across the five agent workflows. It uses the existing staff sign-in and 44 explicitly registered internal API tools. Users can find sources and saved records, generate or revise curricula, documents and campaigns, manage catalog review/publication, research opportunities and request authenticated exports. Course sources and opportunity exports can also be attached on the page.
-
-The planner proposes actions; every write requires confirmation. Review and publication decisions require a separate action, an inspection acknowledgement and a check that the record has not changed since its preview. Existing source verification, template approval and downstream review gates still apply. An approved curriculum is required before creating a related campaign. The individual agent pages remain available for detailed editing and review.
-
-Conversations and action outcomes persist in runtime-specific SQLite storage. Repeated execution requests return saved results rather than generating duplicate artifacts. Failed actions stop the remaining steps and preserve completed work. If the server stops during an action, inspect the agent's records before retrying from a new conversation; cross-service work is not a single database transaction. The chat cannot execute arbitrary URLs, code or SQL, and RFP notifications are forced off. Login uses the application's existing shared staff key and declared reviewer name, rather than individual user accounts.
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[Upload source] --> B[Staff verifies course facts]
-    B --> C[Publish course]
-    C --> D[Learning advisor and RAG]
-    C --> E[Curriculum draft]
-    E --> F[Instructor review and approval]
-    F --> G[Document draft and review]
-    F --> H[Campaign draft and review]
-    G --> I[Reviewed PDF and DOCX]
-    H --> J[Approved campaign export]
+    L["Learner · Course library and advisor"] --> UI["Streamlit"]
+    S["Staff · Review pages and Instructor chat"] --> UI
+    UI --> API["FastAPI · validation and staff access"]
+    API --> A["Domain services · catalog and five agents"]
+    API --> O["Instructor planner · 44 allowlisted tools"]
+    O --> API
+    A --> DB[("SQLite · records, review history and FTS5")]
+    A --> F[("Local files · originals, covers and exports")]
+    A --> AI["Groq / Gemini · structured generation"]
+    A --> X["LangSearch MCP · RFP discovery"]
+    A --> P["Puter · optional course covers"]
+    M["Local stdio FastMCP · 10 tools"] --> A
 ```
 
-Curricula are proposed teaching plans, not new published catalog entries. They cannot publish courses automatically. Curriculum-based documents and campaigns require an approved curriculum linked to their selected course. Source withdrawals or revisions invalidate downstream approval/export eligibility. Alignment reports never confer official accreditation.
+The default retrieval path is SQLite FTS5 over staff-verified course facts. Gemini embeddings and embedded Chroma are optional. The Instructor planner uses internal API calls; the local MCP server is a separate integration for external clients.
 
-## Isolated sample mode
+```mermaid
+flowchart TD
+    U["Upload original PDF, DOCX or Markdown"] --> R{"Staff source review"}
+    R -->|Reject with reason| J["Preserved source and audit event"]
+    R -->|Verify facts and publish| C["Published course"]
+    C --> L["Learner answers and recommendations"]
+    C --> D["Curriculum draft"]
+    D --> A{"Staff reviews curriculum"}
+    A -->|Revise| D
+    A -->|Approve| P["Approved teaching plan"]
+    P --> G["Generate training documents"]
+    P --> M["Draft marketing campaign"]
+    G --> E["Review and download PDF / DOCX"]
+    M --> F["Review and export campaign"]
+```
 
-An optional sample mode separates fictional records from academy storage. Supply an external sample pack through `REX_DEMO_EXAMPLES_DIR` (an absolute directory containing `course_manifest.json`, its referenced course files and `tenders.json`), then run:
+**Engineering highlights**
+
+- **Traceable data:** original files retain their format and checksum. Rejected uploads cannot feed publication. Retrieval checks the current published record and source revision.
+- **Reviewable changes:** versioned outputs and audit history preserve decisions. Withdrawn or superseded sources can block dependent approvals or exports.
+- **Controlled orchestration:** request identifiers protect against duplicate execution. Decision previews are rechecked before execution. A new curriculum must be reviewed before dependent work can use it.
+- **Bounded inputs:** upload and Office archive limits, isolated demo storage, and source validation reduce accidental exposure and unsafe processing.
+- **Optional integrations:** provider errors surface without fabricating output. Course publication does not depend on Puter; cover generation runs once per revision after publication, and browsing reads the stored image.
+
+## Quick start
+
+Use **Python 3.14** and run the commands from the repository root. In PowerShell:
 
 ```powershell
-python scripts/run_demo.py
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-The frontend uses port 8510 and the backend uses port 8010. Staff authentication and publication review are required in both modes. Sample packs and personal preparation materials are not distributed with the application. Automated tests generate their own temporary fixtures.
+Set the following in the ignored local `.env`. Replace the placeholders locally.
 
-## Checks
+```dotenv
+REX_APP_MODE=academy
+REX_CATALOG_ADMIN_KEY=your_local_staff_secret
+REX_AI_PROVIDER=groq
+GROQ_API_KEY=your_local_provider_key
+REX_RETRIEVAL_BACKEND=sqlite
+```
+
+Start FastAPI and Streamlit in separate terminals:
 
 ```powershell
-python -m compileall -q backend frontend
-python -m pytest tests/ backend/app/agents/rfp/tests/ -q
+# Terminal 1
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
-
-Offline tests isolate storage and mock external AI calls. For an intentional real Groq check using temporary test records:
 
 ```powershell
-$env:REX_RUN_LIVE_TESTS='1'
-python -m pytest tests/test_live_academy_workflow.py -q
-Remove-Item Env:REX_RUN_LIVE_TESTS
+# Terminal 2
+.\.venv\Scripts\python.exe -m streamlit run frontend/app.py --server.port 8501
 ```
 
-## MCP
+Open [REX AI](http://127.0.0.1:8501/) or the [interactive API reference](http://127.0.0.1:8000/docs). The Academy catalog starts empty. Staff can sign in, upload a verified course source, check its details, and publish it. AI drafting needs a configured text provider; file staging, structured field extraction, and SQLite publication do not.
 
-Run `python -m backend.app.mcp_server` for the local stdio MCP server. It exposes ten tools covering published course discovery/retrieval, consented lead capture, document templates/drafts, approved curricula, curriculum drafts, campaign drafts and stored RFP opportunities. Staff tools require `REX_MCP_STAFF_KEY` matching the administrator key. MCP cannot approve records, publish courses, send messages or distribute campaigns.
+| Optional integration | Setup |
+|---|---|
+| LangSearch | Set `LANGSEARCH_API_KEY` for RFP web discovery. File imports and public directory sources remain available separately. |
+| Puter | Install Node.js 24+, run `npm --prefix scripts/puter ci --ignore-scripts`, then set `PUTER_AUTH_TOKEN`. New course publications can generate cover art. |
+| Gemini and Chroma | See [provider setup](docs/PROVIDER_SETUP.md) and the [Chroma security notes](docs/SECURITY.md). Use the separate vector requirements only when needed. |
+| OCR | Install Tesseract with English and Arabic language packs for scanned PDFs. Text PDFs, DOCX and Markdown do not require OCR. |
+| Demo mode | Configure an external sample pack via `REX_DEMO_EXAMPLES_DIR`, then run `python scripts/run_demo.py`. The demo uses separate storage and ports 8010/8510. |
 
-## Operations and limits
+Restart FastAPI after configuration changes. See the [provider guide](docs/PROVIDER_SETUP.md) for details.
 
-- Persist `data/` securely and back it up. Keep `.env`, SQLite databases, sidecars and generated runtime files out of Git. Demo records remain explicitly fictional.
-- Shared staff keys support controlled local use. Public deployment requires HTTPS, individual staff accounts, roles, rate limits and deployment-specific operational controls.
-- Academy staff must verify source records and reference frameworks, review generated outputs and configure portal access.
-- External email distribution is not triggered by the normal UI. Existing RFP notification integrations require deliberate operator configuration.
-- Scanned PDFs require Tesseract with English/Arabic language data. Ordinary text PDF, Word and Markdown ingestion do not require OCR. On Ubuntu: `sudo apt-get install tesseract-ocr tesseract-ocr-eng tesseract-ocr-ara`.
+## Verification
 
-Direct runtime and development dependencies are pinned to tested versions. Default installation uses SQLite retrieval and excludes Chroma. The preserved Gemini/Chroma path needs `python -m pip install -r requirements-vector.txt`; review the unresolved upstream advisories in [security notes](docs/SECURITY.md) before enabling it. Never expose a Chroma HTTP server. The local staff-key model is not suitable for unrestricted public deployment.
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q backend frontend
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m pip_audit --local
+.\.venv\Scripts\python.exe -m pytest tests/ backend/app/agents/rfp/tests/ -q
+```
 
-Technology: Python, FastAPI, Streamlit, SQLite/FTS5, Groq or Gemini, optional Chroma, PyMuPDF, python-docx and FastMCP.
+The latest application release check on commit `2d01734` recorded **514 passed, 7 skipped**. Offline tests cover authorization, rejection and publication, retrieval and source withdrawal, orchestrator confirmation, RFP filtering, course covers, exports, and Streamlit interactions. Provider tests are opt-in; tests use isolated data and mocks where appropriate.
 
-## Academy visual identity
+[GitHub Actions](.github/workflows/ci.yml) runs syntax checks, a dependency audit, and the offline suite on Ubuntu with Python 3.14. CI does not deploy the application or verify provider availability.
 
-The interface uses the official logo and copper/charcoal palette from https://andalusia-academy.com/. Generated PDF and Word files use a portfolio-style cover, burgundy section banners, copper details, readable tables and a source appendix, using the academy portfolio document style. English and Arabic layouts are supported. Saved artifacts are immutable; create a new revision to apply a newer visual style and approve the current template version before generation.
+## Repository guide
+
+| Path | Responsibility |
+|---|---|
+| [frontend/](frontend/) | Streamlit learner and staff workspace |
+| [backend/app/catalog/](backend/app/catalog/) | Uploads, staff review, publication, covers, and approved retrieval |
+| [backend/app/agents/](backend/app/agents/) | Curriculum and RFP agent services |
+| [backend/app/instructor/](backend/app/instructor/) | Persistent chat, action planning, tool registry and confirmation |
+| [backend/app/documents/](backend/app/documents/) · [marketing/](backend/app/marketing/) | Document rendering and campaign drafts, reviews, and exports |
+| [tests/](tests/) · [docs/](docs/) | Automated checks, architecture, workflows, and API contracts |
+
+Read the [current architecture](docs/ARCHITECTURE.md), [agent workflows](docs/AGENT_WORKFLOWS.md), [OpenAPI snapshot](docs/openapi.current.json), and [security and deployment notes](docs/SECURITY.md) for more detail. Team workstreams are documented in the [WBS](docs/WBS.md); individual contributions are traceable through Git history and pull requests.
+
+This MVP is designed for controlled local use. Shared staff authentication is not individual identity or role-based access. A public deployment would need individual accounts, deployment security, monitoring and an operational data policy. Staff must verify real catalog data, procurement leads and accreditation criteria before using them in academy operations.
